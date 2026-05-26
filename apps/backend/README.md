@@ -31,6 +31,33 @@
 $ npm install
 ```
 
+## MSSQL connection
+
+The backend now includes a global MSSQL provider via `MssqlService`.
+Environment variables are loaded automatically from `.env`.
+
+Use `.env.example` as the template for local backend configuration.
+
+Defaults are aligned with the existing raktar project:
+
+- `MSSQL_SERVER=villumensrv\\MSSQLSERVER1`
+- `MSSQL_DATABASE=Robie`
+- `MSSQL_USER=villumen_api`
+- `MSSQL_TRUST_SERVER_CERT=true`
+
+Set the password and optional connection settings using environment variables:
+
+```bash
+MSSQL_PASSWORD=your-password
+MSSQL_PORT=1433
+MSSQL_ENCRYPT=false
+MSSQL_POOL_MAX=10
+MSSQL_POOL_MIN=0
+MSSQL_POOL_IDLE_MS=30000
+```
+
+Inject and use `MssqlService` in any provider, then call `getPool()` or `query()`.
+
 ## Compile and run the project
 
 ```bash
