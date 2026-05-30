@@ -45,6 +45,32 @@ export class TasksService {
     private readonly messagesService: MessagesService,
   ) {}
 
+  private async safeQuery<T>(
+    context: string,
+    sql: string,
+    params?: unknown[],
+  ): Promise<T[]> {
+    try {
+      return await this.mssqlService.query<T>(sql, params);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`SQL query failed in ${context}: ${message}`);
+    }
+  }
+
+  private async safeExecute(
+    context: string,
+    sql: string,
+    params?: unknown[],
+  ): Promise<void> {
+    try {
+      await this.mssqlService.execute(sql, params);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`SQL execute failed in ${context}: ${message}`);
+    }
+  }
+
   async getFeladatok(userName: string): Promise<TaskRecord[]> {
     const sql = `
       SELECT fel.[_id], allapot, [felado], [fel_tipus], m.megnevezes, surgosseg,
@@ -58,7 +84,7 @@ export class TasksService {
       WHERE raktaros = @p0 AND datum = CONVERT(date, SYSDATETIME());
     `;
 
-    const tasks = await this.mssqlService.query<TaskRecord>(sql, [userName]);
+    const tasks = await this.safeQuery<TaskRecord>('getFeladatok.tasks', sql, [userName]);
     const taskIds: number[] = [];
 
     for (const task of tasks) {
@@ -88,7 +114,7 @@ export class TasksService {
       THEN 1 ELSE 0 END van;
     `;
 
-    const row = await this.mssqlService.query<{ van: number }>(sql);
+    const row = await this.safeQuery<{ van: number }>('vanUresFeladat', sql);
     return row[0]?.van ?? 0;
   }
 
@@ -105,51 +131,48 @@ export class TasksService {
       WHERE allapot IN (0, 1) AND _id IN (${placeholders});
     `;
 
-    await this.mssqlService.execute(sql, taskIds);
+    await this.safeExecute('updateTaskStatusReceived', sql, taskIds);
   }
 
   async getTetelek(feladatId: number): Promise<TaskItem[]> {
     const sql = `
-      DECLARE @DB varchar(10);
-      DECLARE @feladatId int;
+      DECLARE @DB varchar(10)
+		DECLARE @feladatId int
 
-      SET @feladatId = @p0;
-      SET @DB = ISNULL((SELECT hivatkozas2 FROM raktaros_feladatok WHERE _id = @feladatId), 'vyw');
+		SET @feladatId = @p0
+		SET @DB = isnull((SELECT hivatkozas2 from raktaros_feladatok where _id = @feladatId), 'vyw')
 
-      EXEC('
-        SELECT t.[_id],
-        t.hivatkozas tetelHiv,
-        t.[FeladatId],
-        t.[Etk],
-        cikknev1 Cikknev,
-        t.[Mennyiseg],
-        (SELECT RAKTARNEV1 FROM ' + @DB + '.dbo.Raktar WHERE RAKTARKOD = t.Raktar) Raktar,
-        t.[Tarolo],
-        (SELECT [sorrend] FROM [utvonal_cimek] WHERE id = t.hivatkozas) Raktar1,
-        t.[Tarolo1],
-        ISNULL([Att1], '''''') Att1,
-        ISNULL([Att2], '''''') Att2,
-        ISNULL([Att3], '''''') Att3,
-        ISNULL([Att4], '''''') Att4,
-        ISNULL([Att5], '''''') Att5,
-        (SELECT [nev] FROM [utvonal_cimek] WHERE id = t.hivatkozas) vevo,
-        (SELECT [varos] FROM [utvonal_cimek] WHERE id = t.hivatkozas) varos,
-        MEROV1 as Mero,
-        n.Allapot allapot,
-        n.Megjegyzes megj,
-        n.Mennyiseg tkeszlet,
-        CONVERT(varchar(16), n.Ido, 112) Ido
-        FROM [raktaros_feladat_tetelek] t
-        LEFT JOIN ' + @DB + '.dbo.cikk ON cikk.etk = t.etk
-        LEFT JOIN (
-          SELECT *, ROW_NUMBER() OVER (PARTITION BY TetelId ORDER BY ido DESC) rn
-          FROM raktaros_feladat_tetelek_naplo
-        ) n ON n.rn = 1 AND n.TetelId = t._id
-        WHERE FeladatId = ' + CONVERT(varchar(20), @feladatId)
-      );
+		EXEC('
+		SELECT t.[_id]
+		,t.hivatkozas tetelHiv
+		,t.[FeladatId]
+		,t.[Etk]
+		,cikknev1 Cikknev
+		,t.[Mennyiseg]
+		,(SELECT RAKTARNEV1 from ' + @DB + '.dbo.Raktar where RAKTARKOD = t.Raktar) Raktar
+		,t.[Tarolo]
+		,(SELECT [sorrend] from [utvonal_cimek] where id = t.hivatkozas) Raktar1
+		,t.[Tarolo1]
+		,isnull([Att1], '''') Att1
+		,isnull([Att2], '''') Att2
+		,isnull([Att3], '''') Att3
+		,isnull([Att4], '''') Att4
+		,isnull([Att5], '''') Att5
+		,(SELECT [nev] from [utvonal_cimek] where id = t.hivatkozas) vevo
+		,(SELECT [varos] from [utvonal_cimek] where id = t.hivatkozas) varos
+		,MEROV1 as Mero
+		,n.Allapot allapot
+		,n.Megjegyzes megj
+		,n.Mennyiseg tkeszlet
+		,convert(varchar(16), n.Ido, 112) Ido
+		FROM [raktaros_feladat_tetelek] t
+		left join ' + @DB + '.dbo.cikk on cikk.etk = t.etk
+		left join (SELECT *, ROW_NUMBER() over (PARTITION BY TetelId ORDER BY ido DESC) rn FROM raktaros_feladat_tetelek_naplo) n
+		on n.rn = 1 and n.TetelId = t._id
+		where FeladatId = ' + @feladatId)
     `;
 
-    return this.mssqlService.query<TaskItem>(sql, [feladatId]);
+    return this.safeQuery<TaskItem>('getTetelek', sql, [feladatId]);
   }
 
   async reportFeladatok(feladatok: ReportFeladat[], telefonIdo = ''): Promise<void> {
@@ -167,7 +190,8 @@ export class TasksService {
         continue;
       }
 
-      await this.mssqlService.execute(
+      await this.safeExecute(
+        'reportFeladatok.updateStatus',
         `
         UPDATE [Raktaros_feladatok]
         SET allapot = @p1
@@ -177,7 +201,8 @@ export class TasksService {
       );
 
       if (feladat.elkezdte !== undefined) {
-        await this.mssqlService.execute(
+        await this.safeExecute(
+          'reportFeladatok.completeTask',
           `
           SET NOCOUNT ON;
           UPDATE [Raktaros_feladatok]
@@ -200,7 +225,8 @@ export class TasksService {
 
       if (!tetelId) {
         const sourceId = tetel._id ?? -1;
-        const existing = await this.mssqlService.query<{ tetelsz: number }>(
+        const existing = await this.safeQuery<{ tetelsz: number }>(
+          'reportTetelek.findExistingTetel',
           `
           SELECT ISNULL((
             SELECT _id
@@ -214,7 +240,8 @@ export class TasksService {
         tetelId = existing[0]?.tetelsz ?? -1;
 
         if (tetelId === -1) {
-          const inserted = await this.mssqlService.query<{ tetelsz: number }>(
+          const inserted = await this.safeQuery<{ tetelsz: number }>(
+            'reportTetelek.insertTetel',
             `
             SET NOCOUNT ON;
             INSERT raktaros_feladat_tetelek (FeladatId, Etk, Tarolo, Att5)
@@ -239,7 +266,8 @@ export class TasksService {
           }
         }
 
-        await this.mssqlService.execute(
+        await this.safeExecute(
+          'reportTetelek.reportTetelLog',
           'EXEC raktar_feladat_report_tetel @id = @p0, @allapot = @p1, @menny = @p2, @megjegyzes = @p3, @ido = @p4;',
           [
             tetelId ?? null,
@@ -267,7 +295,7 @@ export class TasksService {
       );
     `;
 
-    return this.mssqlService.query(sql);
+    return this.safeQuery('szabadFeladatok', sql);
   }
 
   async kertFeladat(userName: string, kertArray: number[]): Promise<boolean> {
@@ -282,7 +310,7 @@ export class TasksService {
       WHERE (raktaros = '' OR raktaros IS NULL) AND _id IN (${placeholders});
     `;
 
-    await this.mssqlService.execute(sql, [userName, ...kertArray]);
+    await this.safeExecute('kertFeladat', sql, [userName, ...kertArray]);
     return true;
   }
 
@@ -294,7 +322,7 @@ export class TasksService {
       ORDER BY sorrend;
     `;
 
-    const rows = await this.mssqlService.query<{ cim: string }>(sql, [id]);
+    const rows = await this.safeQuery<{ cim: string }>('utvonal', sql, [id]);
     return rows.map((row) => row.cim);
   }
 }
