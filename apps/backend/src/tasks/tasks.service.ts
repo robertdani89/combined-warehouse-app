@@ -11,8 +11,8 @@ export interface TaskRecord {
   _id: number;
   allapot: number;
   [key: string]: unknown;
-  tetelek?: TaskItem[];
-  uzenetek?: TaskMessage[];
+  items?: TaskItem[];
+  messages?: TaskMessage[];
 }
 
 export interface ReportLogEntry {
@@ -22,7 +22,7 @@ export interface ReportLogEntry {
   naplo_ido?: string;
 }
 
-export interface ReportTetel {
+export interface ReportItem {
   tetel_id?: number;
   _id?: number;
   tetel_etk?: string;
@@ -30,12 +30,12 @@ export interface ReportTetel {
   naplo: ReportLogEntry[];
 }
 
-export interface ReportFeladat {
+export interface ReportTask {
   id: number;
   allapot?: number;
   befejezte?: string;
   elkezdte?: string;
-  tetelek?: ReportTetel[];
+  items?: ReportItem[];
 }
 
 @Injectable()
@@ -71,7 +71,7 @@ export class TasksService {
     }
   }
 
-  async getFeladatok(userName: string): Promise<TaskRecord[]> {
+  async getTasks(userName: string): Promise<TaskRecord[]> {
     const sql = `
       SELECT fel.[_id], allapot, [felado], [fel_tipus], m.megnevezes, surgosseg,
       CONVERT(varchar(5), befejezte, 108) AS befejezte,
@@ -84,15 +84,15 @@ export class TasksService {
       WHERE raktaros = @p0 AND datum = CONVERT(date, SYSDATETIME());
     `;
 
-    const tasks = await this.safeQuery<TaskRecord>('getFeladatok.tasks', sql, [userName]);
+    const tasks = await this.safeQuery<TaskRecord>('getTasks.tasks', sql, [userName]);
     const taskIds: number[] = [];
 
     for (const task of tasks) {
       taskIds.push(task._id);
       if ((task.allapot ?? 0) < 5) {
-        task.tetelek = await this.getTetelek(task._id);
+        task.items = await this.getTaskItems(task._id);
       }
-      task.uzenetek = await this.messagesService.getUzenetek(task._id, userName);
+      task.messages = await this.messagesService.getUzenetek(task._id, userName);
     }
 
     if (taskIds.length > 0) {
@@ -102,7 +102,7 @@ export class TasksService {
     return tasks;
   }
 
-  async vanUresFeladat(): Promise<number> {
+  async hasEmptyTask(): Promise<number> {
     const sql = `
       SELECT CASE
       WHEN EXISTS(
@@ -114,7 +114,7 @@ export class TasksService {
       THEN 1 ELSE 0 END van;
     `;
 
-    const row = await this.safeQuery<{ van: number }>('vanUresFeladat', sql);
+    const row = await this.safeQuery<{ van: number }>('hasEmptyTask', sql);
     return row[0]?.van ?? 0;
   }
 
@@ -134,7 +134,7 @@ export class TasksService {
     await this.safeExecute('updateTaskStatusReceived', sql, taskIds);
   }
 
-  async getTetelek(feladatId: number): Promise<TaskItem[]> {
+  async getTaskItems(feladatId: number): Promise<TaskItem[]> {
     const sql = `
       DECLARE @DB varchar(10)
 		DECLARE @feladatId int
@@ -172,94 +172,104 @@ export class TasksService {
 		where FeladatId = ' + @feladatId)
     `;
 
-    return this.safeQuery<TaskItem>('getTetelek', sql, [feladatId]);
+    return this.safeQuery<TaskItem>('getTaskItems', sql, [feladatId]);
   }
 
-  async reportFeladatok(feladatok: ReportFeladat[], telefonIdo = ''): Promise<void> {
-    let idoModosito = 0;
-    if (telefonIdo) {
-      const phoneTime = Math.floor(new Date(telefonIdo).getTime() / 1000);
-      if (!Number.isNaN(phoneTime)) {
+  async reportTasks(tasks: ReportTask[], phoneTime = ''): Promise<void> {
+    let timeOffset = 0;
+    if (phoneTime) {
+      const phoneTimestamp = Math.floor(new Date(phoneTime).getTime() / 1000);
+      if (!Number.isNaN(phoneTimestamp)) {
         const now = Math.floor(Date.now() / 1000);
-        idoModosito = now - phoneTime;
+        timeOffset = now - phoneTimestamp;
       }
     }
 
-    for (const feladat of feladatok) {
-      if (typeof feladat.allapot !== 'number') {
-        continue;
+    for (const task of tasks) {
+      await this.reportTask(task, timeOffset);
+    }
+  }
+
+  async reportTask(task: ReportTask, timeOffset: number): Promise<void> {
+      if (typeof task.allapot !== 'number') {
+        return;
       }
 
       await this.safeExecute(
-        'reportFeladatok.updateStatus',
+        'reportTasks.updateStatus',
         `
         UPDATE [Raktaros_feladatok]
         SET allapot = @p1
         WHERE _id = @p0 AND allapot != @p1;
         `,
-        [feladat.id, feladat.allapot],
+        [task.id, task.allapot],
       );
 
-      if (feladat.elkezdte !== undefined) {
+      if (task.elkezdte !== undefined) {
         await this.safeExecute(
-          'reportFeladatok.completeTask',
+          'reportTasks.completeTask',
           `
           SET NOCOUNT ON;
           UPDATE [Raktaros_feladatok]
           SET allapot = 5, [befejezte] = @p0, [elkezdte] = @p1, [lejelentette] = GETDATE()
           WHERE _id = @p2;
           `,
-          [feladat.befejezte ?? null, feladat.elkezdte ?? null, feladat.id],
+          [task.befejezte ?? null, task.elkezdte ?? null, task.id],
         );
 
-        await this.reportTetelek(feladat, idoModosito);
+        await this.reportItems(task, timeOffset);
       }
+  }
+
+  async reportItems(task: ReportTask, timeOffset: number): Promise<void> {
+    const items = task.items ?? [];
+
+    for (const item of items) {
+      await this.reportItem(item, timeOffset);
     }
   }
 
-  async reportTetelek(feladat: ReportFeladat, idoModosito: number): Promise<void> {
-    const tetelek = feladat.tetelek ?? [];
+  async reportItem(item: ReportItem, timeOffset?: number): Promise<void> {
+      let itemId = item.tetel_id;
+      timeOffset ??= 0;
 
-    for (const tetel of tetelek) {
-      let tetelId = tetel.tetel_id;
+      // if (!itemId) {
+      //   const sourceId = item._id ?? -1;
+      //   const existing = await this.safeQuery<{ tetelsz: number }>(
+      //     'reportItems.findExistingItem',
+      //     `
+      //     SELECT ISNULL((
+      //       SELECT _id
+      //       FROM raktaros_feladat_tetelek
+      //       WHERE FeladatId = @p0 AND Att5 = @p1
+      //     ), -1) tetelsz;
+      //     `,
+      //     [taskId, sourceId],
+      //   );
 
-      if (!tetelId) {
-        const sourceId = tetel._id ?? -1;
-        const existing = await this.safeQuery<{ tetelsz: number }>(
-          'reportTetelek.findExistingTetel',
-          `
-          SELECT ISNULL((
-            SELECT _id
-            FROM raktaros_feladat_tetelek
-            WHERE FeladatId = @p0 AND Att5 = @p1
-          ), -1) tetelsz;
-          `,
-          [feladat.id, sourceId],
-        );
+      //   itemId = existing[0]?.tetelsz ?? -1;
 
-        tetelId = existing[0]?.tetelsz ?? -1;
+      //   if (itemId === -1) {
+      //     const inserted = await this.safeQuery<{ tetelsz: number }>(
+      //       'reportItems.insertItem',
+      //       `
+      //       SET NOCOUNT ON;
+      //       INSERT raktaros_feladat_tetelek (FeladatId, Etk, Tarolo, Att5)
+      //       VALUES (@p0, @p1, @p2, @p3);
+      //       SELECT CONVERT(int, SCOPE_IDENTITY()) as tetelsz;
+      //       `,
+      //       [taskId, item.tetel_etk ?? null, item.tetel_tarolohely ?? null, sourceId],
+      //     );
+      //     itemId = inserted[0]?.tetelsz;
+      //   }
+      // }
 
-        if (tetelId === -1) {
-          const inserted = await this.safeQuery<{ tetelsz: number }>(
-            'reportTetelek.insertTetel',
-            `
-            SET NOCOUNT ON;
-            INSERT raktaros_feladat_tetelek (FeladatId, Etk, Tarolo, Att5)
-            VALUES (@p0, @p1, @p2, @p3);
-            SELECT CONVERT(int, SCOPE_IDENTITY()) as tetelsz;
-            `,
-            [feladat.id, tetel.tetel_etk ?? null, tetel.tetel_tarolohely ?? null, sourceId],
-          );
-          tetelId = inserted[0]?.tetelsz;
-        }
-      }
-
-      for (const naplo of tetel.naplo ?? []) {
-        let ido = naplo.naplo_ido ?? null;
-        if (ido) {
-          const timestamp = Math.floor(new Date(ido).getTime() / 1000);
+      for (const log of item.naplo ?? []) {
+        let time = log.naplo_ido ?? null;
+        if (time && timeOffset) {
+          const timestamp = Math.floor(new Date(time).getTime() / 1000);
           if (!Number.isNaN(timestamp)) {
-            ido = new Date((timestamp + idoModosito) * 1000)
+            time = new Date((timestamp + timeOffset) * 1000)
               .toISOString()
               .slice(0, 19)
               .replace('T', ' ');
@@ -267,21 +277,20 @@ export class TasksService {
         }
 
         await this.safeExecute(
-          'reportTetelek.reportTetelLog',
+          'reportItems.reportItemLog',
           'EXEC raktar_feladat_report_tetel @id = @p0, @allapot = @p1, @menny = @p2, @megjegyzes = @p3, @ido = @p4;',
           [
-            tetelId ?? null,
-            naplo.naplo_allapot ?? null,
-            naplo.naplo_mennyiseg ?? null,
-            naplo.naplo_megjegyzes ?? null,
-            ido,
+            itemId ?? null,
+            log.naplo_allapot ?? null,
+            log.naplo_mennyiseg ?? null,
+            log.naplo_megjegyzes ?? null,
+            time,
           ],
         );
       }
-    }
   }
 
-  async szabadFeladatok(): Promise<Array<Record<string, unknown>>> {
+  async getFreeTasks(): Promise<Array<Record<string, unknown>>> {
     const sql = `
       SELECT fel.[_id], [felado], [fel_tipus], ISNULL(comment, '') comment, fel.megnevezes
       FROM [Raktaros_feladatok] fel
@@ -295,26 +304,26 @@ export class TasksService {
       );
     `;
 
-    return this.safeQuery('szabadFeladatok', sql);
+    return this.safeQuery('getFreeTasks', sql);
   }
 
-  async kertFeladat(userName: string, kertArray: number[]): Promise<boolean> {
-    if (kertArray.length === 0) {
+  async requestTasks(userName: string, taskIds: number[]): Promise<boolean> {
+    if (taskIds.length === 0) {
       return false;
     }
 
-    const placeholders = kertArray.map((_, index) => `@p${index + 1}`).join(',');
+    const placeholders = taskIds.map((_, index) => `@p${index + 1}`).join(',');
     const sql = `
       UPDATE Raktaros_feladatok
       SET raktaros = @p0
       WHERE (raktaros = '' OR raktaros IS NULL) AND _id IN (${placeholders});
     `;
 
-    await this.safeExecute('kertFeladat', sql, [userName, ...kertArray]);
+    await this.safeExecute('requestTasks', sql, [userName, ...taskIds]);
     return true;
   }
 
-  async utvonal(id: number): Promise<string[]> {
+  async getRoute(id: number): Promise<string[]> {
     const sql = `
       SELECT nev + ' ' + varos as cim
       FROM utvonal_cimek
@@ -322,7 +331,7 @@ export class TasksService {
       ORDER BY sorrend;
     `;
 
-    const rows = await this.safeQuery<{ cim: string }>('utvonal', sql, [id]);
+    const rows = await this.safeQuery<{ cim: string }>('getRoute', sql, [id]);
     return rows.map((row) => row.cim);
   }
 }

@@ -1,13 +1,18 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
-import { ReportFeladat, TaskItem, TaskRecord, TasksService } from './tasks.service';
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Put, Query } from '@nestjs/common';
+import { ReportItem, ReportTask, TaskItem, TaskRecord, TasksService } from './tasks.service';
 
 interface MarkReceivedRequest {
   taskIds: number[];
 }
 
 interface ReportTasksRequest {
-  feladatok: ReportFeladat[];
-  telefonIdo?: string;
+  tasks: ReportTask[];
+  phoneTime?: string;
+}
+
+interface ReportTaskItemRequest {
+  item: ReportItem;
+  phoneTime?: string;
 }
 
 interface RequestTasksRequest {
@@ -20,13 +25,13 @@ export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Get()
-  async getFeladatok(@Query('userName') userName: string): Promise<TaskRecord[]> {
-    return this.tasksService.getFeladatok(userName);
+  async getTasks(@Query('userName') userName: string): Promise<TaskRecord[]> {
+    return this.tasksService.getTasks(userName);
   }
 
   @Get('has-empty')
   async hasEmptyTask(): Promise<{ van: number }> {
-    const van = await this.tasksService.vanUresFeladat();
+    const van = await this.tasksService.hasEmptyTask();
     return { van };
   }
 
@@ -37,24 +42,30 @@ export class TasksController {
   }
 
   @Get(':id/items')
-  async getTetelek(@Param('id', ParseIntPipe) id: number): Promise<TaskItem[]> {
-    return this.tasksService.getTetelek(id);
+  async getTaskItems(@Param('id', ParseIntPipe) id: number): Promise<TaskItem[]> {
+    return this.tasksService.getTaskItems(id);
+  }
+
+  @Put('report-item')
+  async reportTaskItem(@Body() body: ReportTaskItemRequest): Promise<{ success: boolean }> {
+    await this.tasksService.reportItem(body.item, +(body.phoneTime ?? 0));
+    return { success: true };
   }
 
   @Post('report')
-  async reportFeladatok(@Body() body: ReportTasksRequest): Promise<{ success: boolean }> {
-    await this.tasksService.reportFeladatok(body.feladatok ?? [], body.telefonIdo ?? '');
+  async reportTasks(@Body() body: ReportTasksRequest): Promise<{ success: boolean }> {
+    await this.tasksService.reportTasks(body.tasks ?? [], body.phoneTime ?? '');
     return { success: true };
   }
 
   @Get('free/list')
-  async szabadFeladatok(): Promise<Array<Record<string, unknown>>> {
-    return this.tasksService.szabadFeladatok();
+  async getFreeTasks(): Promise<Array<Record<string, unknown>>> {
+    return this.tasksService.getFreeTasks();
   }
 
   @Post('request')
   async requestTasks(@Body() body: RequestTasksRequest): Promise<{ success: boolean }> {
-    const success = await this.tasksService.kertFeladat(
+    const success = await this.tasksService.requestTasks(
       body.userName,
       body.taskIds ?? [],
     );
@@ -62,8 +73,8 @@ export class TasksController {
   }
 
   @Get(':id/route')
-  async utvonal(@Param('id', ParseIntPipe) id: number): Promise<{ route: string[] }> {
-    const route = await this.tasksService.utvonal(id);
+  async getRoute(@Param('id', ParseIntPipe) id: number): Promise<{ route: string[] }> {
+    const route = await this.tasksService.getRoute(id);
     return { route };
   }
 }
