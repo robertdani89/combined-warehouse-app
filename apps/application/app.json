@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "application",
-    "slug": "application",
+    "name": "Villumen Raktar",
+    "slug": "villumen-raktar",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -21,7 +21,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.robertdani89.villumenraktar"
     },
     "web": {
       "favicon": "./assets/favicon.png"

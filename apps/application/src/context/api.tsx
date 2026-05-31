@@ -44,24 +44,17 @@ function formatDate(date: Date): string {
 function normalizeBackendUrl(rawValue: string | undefined): string {
   const value = (rawValue ?? '').trim();
   if (!value) {
-    throw new Error('EXPO_PUBLIC_BACKEND_URL is missing. Set it in .env.');
-  }
-
-  return value.replace(/\/+$/, '');
-}
-
-function normalizeBackendUrlOptional(rawValue: string | undefined): string {
-  const value = (rawValue ?? '').trim();
-  if (!value) {
     return '';
   }
   return value.replace(/\/+$/, '');
 }
 
 const PRIMARY_URL = normalizeBackendUrl(process.env.EXPO_PUBLIC_BACKEND_URL);
-const SECONDARY_URL = process.env.EXPO_PUBLIC_BACKEND_SECONDARY_URL
-  ? normalizeBackendUrlOptional(process.env.EXPO_PUBLIC_BACKEND_SECONDARY_URL)
-  : '';
+if (!PRIMARY_URL) {
+  throw new Error('EXPO_PUBLIC_BACKEND_URL is missing. Set it in .env.');
+}
+
+const SECONDARY_URL = normalizeBackendUrl(process.env.EXPO_PUBLIC_BACKEND_SECONDARY_URL);
 
 let activeBackendUrl: string | null = null;
 let ongoingCheckPromise: Promise<string> | null = null;

@@ -5,6 +5,9 @@
   "workspaces": [
     "apps/*"
   ],
+  "overrides": {
+    "react-router": "6.30.3"
+  },
   "scripts": {
     "dev:website": "npm run dev --workspace=apps/website",
     "dev:app": "npm run start --workspace=apps/application",
