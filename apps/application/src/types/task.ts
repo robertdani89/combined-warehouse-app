@@ -1,3 +1,10 @@
+export type TaskMessage = {
+  _id: number;
+  felado: string;
+  uzenet: string;
+  kelt: string;
+};
+
 export type TaskRecord = {
   _id: number;
   allapot?: number;
@@ -13,7 +20,8 @@ export type TaskRecord = {
   comment?: string;
   hiv?: string;
   items?: TaskItem[];
-  messages?: unknown[];
+  messages?: TaskMessage[];
+  hasUnread?: boolean;
 };
 
 export type TaskItem = {

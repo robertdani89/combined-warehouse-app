@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +13,7 @@ import {
 import { useNavigate } from 'react-router';
 import { useApi } from '../context/api';
 import { LoginSession } from '../types/auth';
+import { useAppTheme } from '../theme/theme';
 
 type LoginScreenProps = {
   onLoginSuccess: (session: LoginSession) => Promise<void>;
@@ -20,8 +21,11 @@ type LoginScreenProps = {
 };
 
 export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScreenProps) {
+  const { colors } = useAppTheme();
   const { login } = useApi();
   const navigate = useNavigate();
+
+  const passwordRef = useRef<TextInput>(null);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -83,18 +87,58 @@ export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScr
     trimmedUser,
   ]);
 
+  const dynamicStyles = StyleSheet.create({
+    container: {
+      backgroundColor: colors.background,
+    },
+    title: {
+      color: colors.textMain,
+    },
+    subtitle: {
+      color: colors.textMuted,
+    },
+    card: {
+      backgroundColor: colors.cardBackground,
+      borderColor: colors.border,
+      shadowColor: colors.textMain,
+    },
+    label: {
+      color: colors.textMain,
+    },
+    input: {
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+      color: colors.textMain,
+    },
+    inputError: {
+      borderColor: colors.danger,
+    },
+    errorText: {
+      color: colors.danger,
+    },
+    primaryButton: {
+      backgroundColor: colors.primary,
+    },
+    buttonDisabled: {
+      backgroundColor: colors.buttonDisabled,
+    },
+    primaryButtonText: {
+      color: colors.textOnPrimary,
+    },
+  });
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
+      style={[styles.container, dynamicStyles.container]}
     >
       <View style={styles.hero}>
-        <Text style={styles.title}>Villumen</Text>
-        <Text style={styles.subtitle}>Jelentkezz be a napi feladatokhoz</Text>
+        <Text style={[styles.title, dynamicStyles.title]}>Villumen</Text>
+        <Text style={[styles.subtitle, dynamicStyles.subtitle]}>Jelentkezz be</Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Felhasználónév</Text>
+      <View style={[styles.card, dynamicStyles.card]}>
+        <Text style={[styles.label, dynamicStyles.label]}>Felhasználónév</Text>
         <TextInput
           autoCapitalize="none"
           autoCorrect={false}
@@ -105,16 +149,24 @@ export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScr
             setLoginError(null);
           }}
           placeholder="Felhasználónév"
-          placeholderTextColor="#64748B"
-          style={[styles.input, usernameTouched && isUsernameMissing ? styles.inputError : undefined]}
+          placeholderTextColor={colors.textSecondary}
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          blurOnSubmit={false}
+          style={[
+            styles.input,
+            dynamicStyles.input,
+            usernameTouched && isUsernameMissing ? dynamicStyles.inputError : undefined,
+          ]}
           value={username}
         />
         {usernameTouched && isUsernameMissing ? (
-          <Text style={styles.errorText}>Felhasználónév megadása kötelező.</Text>
+          <Text style={[styles.errorText, dynamicStyles.errorText]}>Felhasználónév megadása kötelező.</Text>
         ) : null}
 
-        <Text style={styles.label}>Jelszó</Text>
+        <Text style={[styles.label, dynamicStyles.label]}>Jelszó</Text>
         <TextInput
+          ref={passwordRef}
           autoCapitalize="none"
           autoCorrect={false}
           editable={!isSubmitting}
@@ -124,30 +176,37 @@ export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScr
             setLoginError(null);
           }}
           placeholder="Jelszó"
-          placeholderTextColor="#64748B"
+          placeholderTextColor={colors.textSecondary}
+          returnKeyType="done"
+          onSubmitEditing={handleLogin}
           secureTextEntry
-          style={[styles.input, passwordTouched && isPasswordMissing ? styles.inputError : undefined]}
+          style={[
+            styles.input,
+            dynamicStyles.input,
+            passwordTouched && isPasswordMissing ? dynamicStyles.inputError : undefined,
+          ]}
           value={password}
         />
         {passwordTouched && isPasswordMissing ? (
-          <Text style={styles.errorText}>Jelszó megadása kötelező.</Text>
+          <Text style={[styles.errorText, dynamicStyles.errorText]}>Jelszó megadása kötelező.</Text>
         ) : null}
 
-        {loginError ? <Text style={styles.errorText}>{loginError}</Text> : null}
+        {loginError ? <Text style={[styles.errorText, dynamicStyles.errorText]}>{loginError}</Text> : null}
 
         <Pressable
           disabled={isLoginDisabled}
           onPress={handleLogin}
           style={({ pressed }) => [
             styles.primaryButton,
+            dynamicStyles.primaryButton,
             pressed && !isLoginDisabled ? styles.primaryButtonPressed : undefined,
-            isLoginDisabled ? styles.buttonDisabled : undefined,
+            isLoginDisabled ? dynamicStyles.buttonDisabled : undefined,
           ]}
         >
           {isSubmitting ? (
-            <ActivityIndicator color="#F8FAFC" />
+            <ActivityIndicator color={colors.textOnPrimary} />
           ) : (
-            <Text style={styles.primaryButtonText}>Bejelentkezés</Text>
+            <Text style={[styles.primaryButtonText, dynamicStyles.primaryButtonText]}>Bejelentkezés</Text>
           )}
         </Pressable>
       </View>

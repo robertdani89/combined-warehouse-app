@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { TaskRunnerProps } from './TaskRunnerProps';
 import { TaskItem } from '../../types/task';
+import { useAppTheme } from '../../theme/theme';
 
 type CalculationMode = 'calc' | 'weight';
 
@@ -21,10 +22,20 @@ export default function InventoryTask({
   onSaveProgress,
   onFinishTask,
   onCancel,
+  onChat,
 }: TaskRunnerProps) {
+  const { colors } = useAppTheme();
   const [selectedItem, setSelectedItem] = useState<TaskItem | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [calcMode, setCalculationMode] = useState<CalculationMode>('calc');
+
+  const [sortOption, setSortOption] = useState<number>(0);
+  const [sortModalVisible, setSortModalVisible] = useState(false);
+
+  const SORT_OPTIONS = [
+    "Polc sorrend",
+    "Cikknév sorrend"
+  ];
 
   // Overridden items state (id -> override info)
   const [progress, setProgress] = useState<
@@ -42,6 +53,173 @@ export default function InventoryTask({
   const [sampleWeight, setSampleWeight] = useState('');
   const [totalWeight, setTotalWeight] = useState('');
   const [additionalQuantity, setAdditionalQuantity] = useState('');
+
+  const dynamicStyles = StyleSheet.create({
+    container: {
+      backgroundColor: colors.background,
+    },
+    taskInfoContainer: {
+      backgroundColor: colors.cardBackground,
+      borderBottomColor: colors.border,
+    },
+    sortLabel: {
+      color: colors.textSecondary,
+    },
+    sortBtn: {
+      borderColor: colors.border,
+      backgroundColor: colors.backgroundAlt,
+    },
+    sortBtnTxt: {
+      color: colors.primary,
+    },
+    taskTitle: {
+      color: colors.textMain,
+    },
+    taskComment: {
+      color: colors.textMuted,
+    },
+    itemCard: {
+      backgroundColor: colors.cardBackground,
+      borderColor: colors.border,
+    },
+    cikknev: {
+      color: colors.textMain,
+    },
+    etkCode: {
+      color: colors.textSecondary,
+      backgroundColor: colors.backgroundAlt,
+    },
+    infoText: {
+      color: colors.textSecondary,
+    },
+    boldText: {
+      color: colors.textMain,
+    },
+    commentLabel: {
+      color: colors.textMuted,
+    },
+    footerButtons: {
+      backgroundColor: colors.cardBackground,
+      borderTopColor: colors.border,
+    },
+    modalContent: {
+      backgroundColor: colors.cardBackground,
+    },
+    modalTitle: {
+      color: colors.textMain,
+    },
+    tabHeader: {
+      borderColor: colors.border,
+    },
+    tabButton: {
+      backgroundColor: colors.backgroundAlt,
+    },
+    tabButtonActive: {
+      backgroundColor: colors.primary,
+    },
+    tabButtonText: {
+      color: colors.textSecondary,
+    },
+    tabActiveText: {
+      color: colors.textOnPrimary,
+    },
+    calcDisplay: {
+      backgroundColor: colors.background,
+    },
+    formulaText: {
+      color: colors.textSecondary,
+    },
+    resultText: {
+      color: colors.success,
+    },
+    calcBtn: {
+      backgroundColor: colors.backgroundAlt,
+    },
+    calcBtnOp: {
+      backgroundColor: colors.border,
+    },
+    calcBtnEqual: {
+      backgroundColor: colors.success,
+    },
+    calcBtnTxt: {
+      color: colors.textMain,
+    },
+    inputLabel: {
+      color: colors.textMain,
+    },
+    textInput: {
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+      color: colors.textMain,
+    },
+    weightResultBox: {
+      backgroundColor: colors.successBg,
+      borderColor: colors.success,
+    },
+    weightResultTitle: {
+      color: colors.success,
+    },
+    weightResultVal: {
+      color: colors.success,
+    },
+    modalActions: {
+      borderTopColor: colors.border,
+    },
+    modalCloseBtn: {
+      backgroundColor: colors.backgroundAlt,
+    },
+    modalCancelTxt: {
+      color: colors.textSecondary,
+    },
+    modalSaveBtn: {
+      backgroundColor: colors.primary,
+    },
+    modalAddTxt: {
+      color: colors.textOnPrimary,
+    },
+    cancelBtn: {
+      backgroundColor: colors.secondary,
+    },
+    chatBtn: {
+      backgroundColor: colors.primary,
+    },
+    finishBtn: {
+      backgroundColor: colors.success,
+    },
+    finishBtnDisabled: {
+      backgroundColor: colors.buttonDisabled,
+    },
+    modalSub: {
+      color: colors.textSecondary,
+    },
+    dialogMenuBtn: {
+      backgroundColor: colors.backgroundAlt,
+      borderColor: colors.border,
+    },
+    dialogMenuBtnTxt: {
+      color: colors.textMain,
+    },
+  });
+
+  // Sort items based on active sorting choice
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => {
+      const tA = a.Tarolo || '';
+      const tB = b.Tarolo || '';
+
+      const cA = a.Cikknev || '';
+      const cB = b.Cikknev || '';
+
+      if (sortOption === 0) {
+        // Polc sorrend
+        if (tA !== tB) { return tA.localeCompare(tB); }
+        return cA.localeCompare(cB);
+      } else {
+        // Cikknév sorrend
+        return cA.localeCompare(cB);
+      }
+    });
+  }, [items, sortOption]);
 
   const triggerOpenItem = (item: TaskItem) => {
     setSelectedItem(item);
@@ -120,7 +298,7 @@ export default function InventoryTask({
   };
 
   const handleSaveItem = () => {
-    if (!selectedItem) {return;}
+    if (!selectedItem) { return; }
 
     let finalQty = 0;
     let finalAllapot = 1;
@@ -160,7 +338,7 @@ export default function InventoryTask({
     };
 
     setProgress(updated);
-    onSaveProgress(updated).catch(() => {});
+    onSaveProgress(updated).catch(() => { });
     setModalVisible(false);
     setSelectedItem(null);
   };
@@ -180,50 +358,50 @@ export default function InventoryTask({
     const counted = override ? override.mennyiseg : item.tkeszlet;
     const hasBeenCounted = counted !== undefined && counted !== null;
 
-    let bg = '#FFFFFF';
-    let borderC = '#CBD5E1';
+    let bg = colors.cardBackground;
+    let borderC = colors.border;
     let statusText = 'Nincs leltározva';
 
     if (hasBeenCounted) {
       if (allapot === 1 || allapot === 4 || allapot === 5) {
-        bg = '#DCFCE7'; // Green
-        borderC = '#22C55E';
+        bg = colors.successBg; // Green
+        borderC = colors.success;
         statusText = 'Rendben';
       } else if (allapot === 2) {
-        bg = '#FEE2E2'; // Red
-        borderC = '#EF4444';
+        bg = colors.dangerBg; // Red
+        borderC = colors.danger;
         statusText = 'Hiány';
       } else if (allapot === 3) {
-        bg = '#FEE2E2'; // Red
-        borderC = '#EF4444';
+        bg = colors.dangerBg; // Red
+        borderC = colors.danger;
         statusText = 'Többlet';
       }
     }
 
     return (
       <TouchableOpacity
-        style={[styles.itemCard, { backgroundColor: bg, borderColor: borderC }]}
+        style={[styles.itemCard, dynamicStyles.itemCard, { backgroundColor: bg, borderColor: borderC }]}
         onPress={() => triggerOpenItem(item)}
       >
         <View style={styles.itemHeader}>
-          <Text style={styles.cikknev}>{item.Cikknev}</Text>
-          <Text style={styles.etkCode}>{item.Etk || 'Nincs kód'}</Text>
+          <Text style={[styles.cikknev, dynamicStyles.cikknev]}>{item.Cikknev}</Text>
+          <Text style={[styles.etkCode, dynamicStyles.etkCode]}>{item.Etk || 'Nincs kód'}</Text>
         </View>
 
         <View style={styles.infoRow}>
-          <Text style={styles.infoText}>
-            Tárolóhely: <Text style={styles.boldText}>{item.Tarolo || 'Nincs megadva'}</Text>
+          <Text style={[styles.infoText, dynamicStyles.infoText]}>
+            Tárolóhely: <Text style={[styles.boldText, dynamicStyles.boldText]}>{item.Tarolo || 'Nincs megadva'}</Text>
           </Text>
         </View>
 
         <View style={styles.statusBadge}>
-          <Text style={[styles.statusLabel, { color: borderC === '#CBD5E1' ? '#475569' : borderC }]}>
+          <Text style={[styles.statusLabel, { color: borderC === colors.border ? colors.textSecondary : borderC }]}>
             {statusText}
           </Text>
           {override?.megjegyzes ? (
-            <Text style={styles.commentLabel}>Megj: {override.megjegyzes}</Text>
+            <Text style={[styles.commentLabel, dynamicStyles.commentLabel]}>Megj: {override.megjegyzes}</Text>
           ) : item.megj ? (
-            <Text style={styles.commentLabel}>Megj: {item.megj}</Text>
+            <Text style={[styles.commentLabel, dynamicStyles.commentLabel]}>Megj: {item.megj}</Text>
           ) : null}
         </View>
       </TouchableOpacity>
@@ -231,54 +409,65 @@ export default function InventoryTask({
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.taskInfoContainer}>
-        <Text style={styles.taskTitle}>Leltár Feladat #{task._id}</Text>
-        {task.comment ? <Text style={styles.taskComment}>Megjegyzés: {task.comment}</Text> : null}
+    <View style={[styles.container, dynamicStyles.container]}>
+      <View style={[styles.taskInfoContainer, dynamicStyles.taskInfoContainer]}>
+        <View>
+          <Text style={[styles.taskTitle, dynamicStyles.taskTitle]}>
+            {task.megnevezes || `Leltár Feladat #${task._id}`}
+          </Text>
+          {task.comment ? <Text style={[styles.taskComment, dynamicStyles.taskComment]}>Megjegyzés: {task.comment}</Text> : null}
+        </View>
+
+        <TouchableOpacity
+          style={[styles.sortBtn, dynamicStyles.sortBtn]}
+          onPress={() => setSortModalVisible(true)}
+        >
+          <Text style={[styles.sortBtnTxt, dynamicStyles.sortBtnTxt]}>
+            {SORT_OPTIONS[sortOption]} ▾
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
-        data={items}
+        data={sortedItems}
         keyExtractor={(item) => item._id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
       />
 
-      <View style={styles.footerButtons}>
-        <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={onCancel}>
+      <View style={[styles.footerButtons, dynamicStyles.footerButtons]}>
+        <TouchableOpacity style={[styles.btn, styles.cancelBtn, dynamicStyles.cancelBtn]} onPress={onCancel}>
           <Text style={styles.cancelBtnText}>Vissza</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.btn, styles.finishBtn, !allDone && styles.finishBtnDisabled]}
-          onPress={submitFinish}
-          disabled={!allDone}
-        >
-          <Text style={styles.finishBtnText}>Lejelentés</Text>
-        </TouchableOpacity>
+        {onChat ? (
+          <TouchableOpacity style={[styles.btn, styles.chatBtn, dynamicStyles.chatBtn]} onPress={onChat}>
+            <Text style={styles.chatBtnText}>Csevegés 💬</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {/* Leltár Counting Dialog */}
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{selectedItem?.Cikknev}</Text>
+          <View style={[styles.modalContent, dynamicStyles.modalContent]}>
+            <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>{selectedItem?.Cikknev}</Text>
 
             {/* Tabs */}
-            <View style={styles.tabHeader}>
+            <View style={[styles.tabHeader, dynamicStyles.tabHeader]}>
               <TouchableOpacity
-                style={[styles.tabButton, calcMode === 'calc' && styles.tabButtonActive]}
+                style={[styles.tabButton, dynamicStyles.tabButton, calcMode === 'calc' && styles.tabButtonActive, calcMode === 'calc' && dynamicStyles.tabButtonActive]}
                 onPress={() => setCalculationMode('calc')}
               >
-                <Text style={[styles.tabButtonText, calcMode === 'calc' && styles.tabActiveText]}>
+                <Text style={[styles.tabButtonText, dynamicStyles.tabButtonText, calcMode === 'calc' && styles.tabActiveText, calcMode === 'calc' && dynamicStyles.tabActiveText]}>
                   Számológép
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.tabButton, calcMode === 'weight' && styles.tabButtonActive]}
+                style={[styles.tabButton, dynamicStyles.tabButton, calcMode === 'weight' && styles.tabButtonActive, calcMode === 'weight' && dynamicStyles.tabButtonActive]}
                 onPress={() => setCalculationMode('weight')}
               >
-                <Text style={[styles.tabButtonText, calcMode === 'weight' && styles.tabActiveText]}>
+                <Text style={[styles.tabButtonText, dynamicStyles.tabButtonText, calcMode === 'weight' && styles.tabActiveText, calcMode === 'weight' && dynamicStyles.tabActiveText]}>
                   Súly mérése
                 </Text>
               </TouchableOpacity>
@@ -287,9 +476,9 @@ export default function InventoryTask({
             <ScrollView style={styles.modalScroll}>
               {calcMode === 'calc' ? (
                 <View>
-                  <View style={styles.calcDisplay}>
-                    <Text style={styles.formulaText}>{formula || '0'}</Text>
-                    <Text style={styles.resultText}>Eredmény: {calculatedRes} {selectedItem?.Mero || 'db'}</Text>
+                  <View style={[styles.calcDisplay, dynamicStyles.calcDisplay]}>
+                    <Text style={[styles.formulaText, dynamicStyles.formulaText]}>{formula || '0'}</Text>
+                    <Text style={[styles.resultText, dynamicStyles.resultText]}>Eredmény: {calculatedRes} {selectedItem?.Mero || 'db'}</Text>
                   </View>
 
                   <View style={styles.calculatorGrid}>
@@ -306,79 +495,88 @@ export default function InventoryTask({
                             key={btn}
                             style={[
                               styles.calcBtn,
+                              dynamicStyles.calcBtn,
                               btn === '=' && styles.calcBtnEqual,
+                              btn === '=' && dynamicStyles.calcBtnEqual,
                               ['+', '-', '×', '÷'].includes(btn) && styles.calcBtnOp,
+                              ['+', '-', '×', '÷'].includes(btn) && dynamicStyles.calcBtnOp,
                             ]}
                             onPress={() => {
                               let mappedVal = btn;
-                              if (btn === '×') {mappedVal = '*';}
-                              if (btn === '÷') {mappedVal = '/';}
+                              if (btn === '×') { mappedVal = '*'; }
+                              if (btn === '÷') { mappedVal = '/'; }
                               handleKeyPress(mappedVal);
                             }}
                           >
-                            <Text style={styles.calcBtnTxt}>{btn}</Text>
+                            <Text style={[styles.calcBtnTxt, dynamicStyles.calcBtnTxt]}>{btn}</Text>
                           </TouchableOpacity>
                         ))}
                       </View>
                     ))}
                   </View>
 
-                  <Text style={styles.inputLabel}>Tárolóhely módosítása:</Text>
+                  <Text style={[styles.inputLabel, dynamicStyles.inputLabel]}>Tárolóhely módosítása:</Text>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, dynamicStyles.textInput]}
                     value={calcBin}
                     onChangeText={setCalcBin}
                     placeholder="Tároló"
+                    placeholderTextColor={colors.textSecondary}
                   />
 
-                  <Text style={styles.inputLabel}>Megjegyzés:</Text>
+                  <Text style={[styles.inputLabel, dynamicStyles.inputLabel]}>Megjegyzés:</Text>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, dynamicStyles.textInput]}
                     value={calcComment}
                     onChangeText={setCalcComment}
                     placeholder="Megjegyzés az eltéréshez..."
+                    placeholderTextColor={colors.textSecondary}
                   />
                 </View>
               ) : (
                 <View style={styles.weightContainer}>
-                  <Text style={styles.inputLabel}>Minta darabszám:</Text>
+                  <Text style={[styles.inputLabel, dynamicStyles.inputLabel]}>Minta darabszám:</Text>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, dynamicStyles.textInput]}
                     value={sampleQuantity}
                     onChangeText={setSampleQuantity}
                     keyboardType="numeric"
+                    placeholderTextColor={colors.textSecondary}
                   />
 
-                  <Text style={styles.inputLabel}>Minta súlya (g):</Text>
+                  <Text style={[styles.inputLabel, dynamicStyles.inputLabel]}>Minta súlya (g):</Text>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, dynamicStyles.textInput]}
                     value={sampleWeight}
                     onChangeText={setSampleWeight}
                     keyboardType="numeric"
                     placeholder="pl. 12.5"
+                    placeholderTextColor={colors.textSecondary}
                   />
 
-                  <Text style={styles.inputLabel}>Összes mérlegelt súly (g):</Text>
+                  <Text style={[styles.inputLabel, dynamicStyles.inputLabel]}>Összes mérlegelt súly (g):</Text>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, dynamicStyles.textInput]}
                     value={totalWeight}
                     onChangeText={setTotalWeight}
                     keyboardType="numeric"
                     placeholder="pl. 1250"
+                    placeholderTextColor={colors.textSecondary}
                   />
 
-                  <Text style={styles.inputLabel}>Plusz darabok (pl. teli dobozok):</Text>
+                  <Text style={[styles.inputLabel, dynamicStyles.inputLabel]}>Plusz darabok (pl. teli dobozok):</Text>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, dynamicStyles.textInput]}
                     value={additionalQuantity}
                     onChangeText={setAdditionalQuantity}
                     keyboardType="numeric"
                     placeholder="0"
+                    placeholderTextColor={colors.textSecondary}
                   />
 
-                  <View style={styles.weightResultBox}>
-                    <Text style={styles.weightResultTitle}>Számított leltári mennyiség:</Text>
-                    <Text style={styles.weightResultVal}>
+                  <View style={[styles.weightResultBox, dynamicStyles.weightResultBox]}>
+                    <Text style={[styles.weightResultTitle, dynamicStyles.weightResultTitle]}>Számított leltári mennyiség:</Text>
+                    <Text style={[styles.weightResultVal, dynamicStyles.weightResultVal]}>
                       {getWeightCalculatedQty()} {selectedItem?.Mero || 'db'}
                     </Text>
                   </View>
@@ -386,20 +584,62 @@ export default function InventoryTask({
               )}
             </ScrollView>
 
-            <View style={styles.modalActions}>
+            <View style={[styles.modalActions, dynamicStyles.modalActions]}>
               <TouchableOpacity
-                style={[styles.modalBtn, styles.modalCloseBtn]}
+                style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn]}
                 onPress={() => setModalVisible(false)}
               >
-                <Text style={styles.modalCancelTxt}>Mégse</Text>
+                <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Mégse</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalBtn, styles.modalSaveBtn]}
+                style={[styles.modalBtn, styles.modalSaveBtn, dynamicStyles.modalSaveBtn]}
                 onPress={handleSaveItem}
               >
-                <Text style={styles.modalAddTxt}>Hozzáadás</Text>
+                <Text style={[styles.modalAddTxt, dynamicStyles.modalAddTxt]}>Hozzáadás</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Sort options dialog */}
+      <Modal visible={sortModalVisible} transparent animationType="fade" onRequestClose={() => setSortModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, dynamicStyles.modalContent]}>
+            <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>Rendezési opciók</Text>
+            <Text style={[styles.modalSub, dynamicStyles.modalSub]}>Válassz egy rendezési szempontot:</Text>
+
+            <View style={styles.btnGrid}>
+              {SORT_OPTIONS.map((opt, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={[
+                    styles.dialogMenuBtn,
+                    dynamicStyles.dialogMenuBtn,
+                    sortOption === idx && { borderColor: colors.primary, borderWidth: 1.5 }
+                  ]}
+                  onPress={() => {
+                    setSortOption(idx);
+                    setSortModalVisible(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.dialogMenuBtnTxt,
+                    dynamicStyles.dialogMenuBtnTxt,
+                    sortOption === idx && { color: colors.primary, fontWeight: 'bold' }
+                  ]}>
+                    {opt}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn, { marginTop: 12, minHeight: 40 }]}
+              onPress={() => setSortModalVisible(false)}
+            >
+              <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Mégse</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -413,6 +653,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   taskInfoContainer: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
@@ -511,6 +755,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#64748B',
   },
   cancelBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  chatBtn: {
+    backgroundColor: '#0284C7',
+  },
+  chatBtnText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
@@ -698,5 +949,43 @@ const styles = StyleSheet.create({
   modalAddTxt: {
     color: '#FFFFFF',
     fontWeight: 'bold',
+  },
+  sortLabel: {
+    fontSize: 14,
+    color: '#475569',
+    fontWeight: '500',
+  },
+  sortBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  sortBtnTxt: {
+    fontSize: 14,
+    color: '#0F172A',
+    fontWeight: '600',
+  },
+  btnGrid: {
+    gap: 8,
+    width: '100%',
+    marginBottom: 16,
+  },
+  dialogMenuBtn: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    width: '100%',
+  },
+  dialogMenuBtnTxt: {
+    fontSize: 14,
+    color: '#334155',
+    fontWeight: '500',
   },
 });

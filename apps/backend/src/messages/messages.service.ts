@@ -54,8 +54,17 @@ export class MessagesService {
   }
 
   async uzenet(feladatId: number, userName: string, message: string): Promise<boolean> {
-    const sql =
-      'INSERT [raktaros_feladat_uzenetek] (feladatId, felado, uzenet) VALUES (@p0, @p1, @p2);';
+    const sql = `
+      INSERT [raktaros_feladat_uzenetek] (feladatId, felado, uzenet) VALUES (@p0, @p1, @p2);
+
+      -- Mark as unread for everyone else
+      IF EXISTS(SELECT 1 FROM raktaros_uzenet_ki_latta WHERE feladat_id = @p0 AND felhasznalo <> @p1)
+      BEGIN
+        UPDATE raktaros_uzenet_ki_latta
+        SET latta = 0, mikor = SYSDATETIME()
+        WHERE feladat_id = @p0 AND felhasznalo <> @p1;
+      END
+    `;
     await this.mssqlService.execute(sql, [feladatId, userName, message]);
     return true;
   }
@@ -68,5 +77,38 @@ export class MessagesService {
     `;
 
     return this.mssqlService.query<TaskMessage>(sql, [feladatId]);
+  }
+
+  async hasUnreadMessages(feladatId: number, userName: string): Promise<boolean> {
+    const sql = `
+      SELECT CASE
+      WHEN EXISTS (
+        SELECT 1
+        FROM [raktaros_feladat_uzenetek] u
+        WHERE u.feladatId = @p0 AND u.felado <> @p1
+      ) AND (
+        NOT EXISTS (
+          SELECT 1
+          FROM [raktaros_uzenet_ki_latta] kl
+          WHERE kl.feladat_id = @p0 AND kl.felhasznalo = @p1
+        ) OR EXISTS (
+          SELECT 1
+          FROM [raktaros_uzenet_ki_latta] kl
+          WHERE kl.feladat_id = @p0 AND kl.felhasznalo = @p1 AND kl.latta = 0
+        ) OR EXISTS (
+          SELECT 1
+          FROM [raktaros_uzenet_ki_latta] kl
+          CROSS JOIN (
+            SELECT MAX(kelt) as max_kelt
+            FROM [raktaros_feladat_uzenetek]
+            WHERE feladatId = @p0 AND felado <> @p1
+          ) msg
+          WHERE kl.feladat_id = @p0 AND kl.felhasznalo = @p1 AND kl.latta = 1 AND kl.mikor < msg.max_kelt
+        )
+      )
+      THEN 1 ELSE 0 END as hasUnread;
+    `;
+    const result = await this.mssqlService.query<{ hasUnread: number }>(sql, [feladatId, userName]);
+    return (result[0]?.hasUnread ?? 0) === 1;
   }
 }

@@ -100,6 +100,22 @@ export class AuthService {
     return result[0] ?? { user: '', EXPIRED: 1, key: '' };
   }
 
+  async validateKey(key: string): Promise<boolean> {
+    if (!key) {
+      return false;
+    }
+    const sql = `
+      SET NOCOUNT ON;
+      DECLARE @key varchar(32) = @p0;
+      SELECT TOP 1 [user]
+      FROM tokens
+      WHERE ([key] = @key OR token = @key) AND [expires] >= SYSDATETIME();
+    `;
+
+    const result = await this.mssqlService.query<{ user: string }>(sql, [key]);
+    return result.length > 0;
+  }
+
   private randomHex(bytes: number): string {
     return randomBytes(bytes).toString('hex');
   }

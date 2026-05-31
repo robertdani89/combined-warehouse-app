@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { TaskRunnerProps } from './TaskRunnerProps';
 import { TaskItem } from '../../types/task';
+import { useAppTheme } from '../../theme/theme';
 
 export default function OtherTask({
   task,
@@ -19,7 +20,9 @@ export default function OtherTask({
   onSaveProgress,
   onFinishTask,
   onCancel,
+  onChat,
 }: TaskRunnerProps) {
+  const { colors } = useAppTheme();
   const [selectedItem, setSelectedItem] = useState<TaskItem | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [commentValue, setCommentValue] = useState('');
@@ -28,6 +31,71 @@ export default function OtherTask({
   const [progress, setProgress] = useState<
     Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string }>
   >(initialProgress ?? {});
+
+  const dynamicStyles = StyleSheet.create({
+    container: {
+      backgroundColor: colors.background,
+    },
+    taskInfoContainer: {
+      backgroundColor: colors.cardBackground,
+      borderBottomColor: colors.border,
+    },
+    taskTitle: {
+      color: colors.textMain,
+    },
+    taskComment: {
+      color: colors.textMuted,
+    },
+    itemCard: {
+      backgroundColor: colors.cardBackground,
+      borderColor: colors.border,
+    },
+    footerButtons: {
+      backgroundColor: colors.cardBackground,
+      borderTopColor: colors.border,
+    },
+    cancelBtn: {
+      backgroundColor: colors.secondary,
+    },
+    chatBtn: {
+      backgroundColor: colors.primary,
+    },
+    modalContent: {
+      backgroundColor: colors.cardBackground,
+    },
+    modalTitle: {
+      color: colors.textMain,
+    },
+    modalSub: {
+      color: colors.textMuted,
+    },
+    inputLabel: {
+      color: colors.textMain,
+    },
+    textInput: {
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+      color: colors.textMain,
+    },
+    modalCloseBtn: {
+      backgroundColor: colors.backgroundAlt,
+    },
+    modalCancelTxt: {
+      color: colors.textSecondary,
+    },
+    modalAlertBtn: {
+      backgroundColor: colors.danger,
+    },
+    modalAlertTxt: {
+      color: colors.textOnPrimary,
+    },
+    modalSaveBtn: {
+      backgroundColor: colors.success,
+    },
+    modalAddTxt: {
+      color: colors.textOnPrimary,
+    },
+  });
 
   const handleOpenItem = (item: TaskItem) => {
     setSelectedItem(item);
@@ -40,7 +108,7 @@ export default function OtherTask({
   };
 
   const handleSaveResult = (allapot: number) => {
-    if (!selectedItem) {return;}
+    if (!selectedItem) { return; }
 
     if (allapot === 2 && !commentValue.trim()) {
       Alert.alert('Hiba', 'A hiba bejelentéséhez a megjegyzés mező kitöltése kötelező!');
@@ -56,7 +124,7 @@ export default function OtherTask({
       },
     };
     setProgress(updated);
-    onSaveProgress(updated).catch(() => {});
+    onSaveProgress(updated).catch(() => { });
 
     setModalVisible(false);
     setSelectedItem(null);
@@ -76,26 +144,26 @@ export default function OtherTask({
     const allapot = override ? override.allapot : (item.allapot ?? 0);
     const megj = override ? override.megjegyzes : item.megj;
 
-    let bg = '#FFFFFF';
-    let textC = '#0F172A';
-    let borderC = '#E2E8F0';
+    let bg = colors.cardBackground;
+    let textC = colors.textMain;
+    let borderC = colors.border;
     let statusText = 'Nincs elkezdve';
 
     if (allapot === 1) {
-      bg = '#DCFCE7'; // Green
-      borderC = '#22C55E';
-      textC = '#166534';
+      bg = colors.successBg; // Green
+      borderC = colors.success;
+      textC = colors.success;
       statusText = 'Kész';
     } else if (allapot === 2) {
-      bg = '#FEE2E2'; // Red
-      borderC = '#EF4444';
-      textC = '#991B1B';
+      bg = colors.dangerBg; // Red
+      borderC = colors.danger;
+      textC = colors.danger;
       statusText = 'Probléma bejelentve';
     }
 
     return (
       <TouchableOpacity
-        style={[styles.itemCard, { backgroundColor: bg, borderColor: borderC }]}
+        style={[styles.itemCard, dynamicStyles.itemCard, { backgroundColor: bg, borderColor: borderC }]}
         onPress={() => handleOpenItem(item)}
       >
         <Text style={[styles.itemLeiras, { color: textC }]}>
@@ -114,10 +182,12 @@ export default function OtherTask({
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.taskInfoContainer}>
-        <Text style={styles.taskTitle}>Egyéb feladat #{task._id}</Text>
-        {task.comment ? <Text style={styles.taskComment}>Megjegyzés: {task.comment}</Text> : null}
+    <View style={[styles.container, dynamicStyles.container]}>
+      <View style={[styles.taskInfoContainer, dynamicStyles.taskInfoContainer]}>
+        <Text style={[styles.taskTitle, dynamicStyles.taskTitle]}>
+          {task.megnevezes || `Egyéb feladat #${task._id}`}
+        </Text>
+        {task.comment ? <Text style={[styles.taskComment, dynamicStyles.taskComment]}>Megjegyzés: {task.comment}</Text> : null}
       </View>
 
       <FlatList
@@ -127,57 +197,56 @@ export default function OtherTask({
         contentContainerStyle={styles.listContent}
       />
 
-      <View style={styles.footerButtons}>
-        <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={onCancel}>
+      <View style={[styles.footerButtons, dynamicStyles.footerButtons]}>
+        <TouchableOpacity style={[styles.btn, styles.cancelBtn, dynamicStyles.cancelBtn]} onPress={onCancel}>
           <Text style={styles.cancelBtnText}>Vissza</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.btn, styles.finishBtn, !allDone && styles.finishBtnDisabled]}
-          onPress={submitFinish}
-          disabled={!allDone}
-        >
-          <Text style={styles.finishBtnText}>Lejelentés</Text>
-        </TouchableOpacity>
+        {onChat ? (
+          <TouchableOpacity style={[styles.btn, styles.chatBtn, dynamicStyles.chatBtn]} onPress={onChat}>
+            <Text style={styles.chatBtnText}>Csevegés 💬</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {/* Egyéb feladat modal */}
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Feladat elvégzése</Text>
-            <Text style={styles.modalSub}>{selectedItem?.Att1}</Text>
+          <View style={[styles.modalContent, dynamicStyles.modalContent]}>
+            <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>Feladat elvégzése</Text>
+            <Text style={[styles.modalSub, dynamicStyles.modalSub]}>{selectedItem?.Att1}</Text>
 
-            <Text style={styles.inputLabel}>Megjegyzés:</Text>
+            <Text style={[styles.inputLabel, dynamicStyles.inputLabel]}>Megjegyzés:</Text>
             <TextInput
-              style={[styles.textInput, styles.textArea]}
+              style={[styles.textInput, styles.textArea, dynamicStyles.textInput]}
               value={commentValue}
               onChangeText={setCommentValue}
               placeholder="Ide írhatja a megjegyzéseket..."
+              placeholderTextColor={colors.textSecondary}
               multiline
               numberOfLines={3}
             />
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[styles.modalBtn, styles.modalCloseBtn]}
+                style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn]}
                 onPress={() => setModalVisible(false)}
               >
-                <Text style={styles.modalCancelTxt}>Mégse</Text>
+                <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Mégse</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalBtn, styles.modalAlertBtn]}
+                style={[styles.modalBtn, styles.modalAlertBtn, dynamicStyles.modalAlertBtn]}
                 onPress={() => handleSaveResult(2)}
               >
-                <Text style={styles.modalAlertTxt}>Baj van</Text>
+                <Text style={[styles.modalAlertTxt, dynamicStyles.modalAlertTxt]}>Baj van</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalBtn, styles.modalSaveBtn]}
+                style={[styles.modalBtn, styles.modalSaveBtn, dynamicStyles.modalSaveBtn]}
                 onPress={() => handleSaveResult(1)}
               >
-                <Text style={styles.modalAddTxt}>Igen</Text>
+                <Text style={[styles.modalAddTxt, dynamicStyles.modalAddTxt]}>Igen</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -260,6 +329,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#64748B',
   },
   cancelBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  chatBtn: {
+    backgroundColor: '#0284C7',
+  },
+  chatBtnText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
   },

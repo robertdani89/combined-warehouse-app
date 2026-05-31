@@ -5,12 +5,14 @@ import { useApi } from '../context/api';
 import { LoginSession } from '../types/auth';
 import { TaskRecord } from '../types/task';
 import TaskListItem from './TaskListItem';
+import { useAppTheme } from '../theme/theme';
 
 type FinishedTasksScreenProps = {
   session: LoginSession;
 };
 
 export default function FinishedTasksScreen({ session }: FinishedTasksScreenProps) {
+  const { colors } = useAppTheme();
   const { getTasks } = useApi();
   const navigate = useNavigate();
 
@@ -37,25 +39,54 @@ export default function FinishedTasksScreen({ session }: FinishedTasksScreenProp
     loadTasks();
   }, [loadTasks]);
 
+  const dynamicStyles = StyleSheet.create({
+    screen: {
+      backgroundColor: colors.background,
+    },
+    title: {
+      color: colors.textMain,
+    },
+    body: {
+      color: colors.textSecondary,
+    },
+    errorText: {
+      color: colors.danger,
+    },
+    secondaryButton: {
+      backgroundColor: colors.backgroundAlt,
+      borderColor: colors.border,
+    },
+    secondaryButtonText: {
+      color: colors.textMain,
+    },
+    backButton: {
+      backgroundColor: colors.cardBackground,
+      borderColor: colors.border,
+    },
+    backButtonText: {
+      color: colors.textMain,
+    },
+  });
+
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, dynamicStyles.screen]}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Lezárt feladatok</Text>
+        <Text style={[styles.title, dynamicStyles.title]}>Lezárt feladatok</Text>
         <View style={styles.headerButtons}>
-          <Pressable style={styles.secondaryButton} onPress={loadTasks}>
-            <Text style={styles.secondaryButtonText}>Frissítés</Text>
+          <Pressable style={[styles.secondaryButton, dynamicStyles.secondaryButton]} onPress={loadTasks}>
+            <Text style={[styles.secondaryButtonText, dynamicStyles.secondaryButtonText]}>Frissítés</Text>
           </Pressable>
-          <Pressable style={styles.backButton} onPress={() => navigate('/feladatok')}>
-            <Text style={styles.backButtonText}>Vissza</Text>
+          <Pressable style={[styles.backButton, dynamicStyles.backButton]} onPress={() => navigate('/feladatok')}>
+            <Text style={[styles.backButtonText, dynamicStyles.backButtonText]}>Vissza</Text>
           </Pressable>
         </View>
       </View>
 
-      {isLoading ? <Text style={styles.body}>Feladatok betöltése...</Text> : null}
-      {loadError ? <Text style={styles.errorText}>{loadError}</Text> : null}
+      {isLoading ? <Text style={[styles.body, dynamicStyles.body]}>Feladatok betöltése...</Text> : null}
+      {loadError ? <Text style={[styles.errorText, dynamicStyles.errorText]}>{loadError}</Text> : null}
 
       {!isLoading && !loadError && tasks.length === 0 ? (
-        <Text style={styles.body}>Nincs lezárt feladat.</Text>
+        <Text style={[styles.body, dynamicStyles.body]}>Nincs lezárt feladat.</Text>
       ) : null}
 
       {!isLoading && !loadError && tasks.length > 0 ? (

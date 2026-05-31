@@ -12,6 +12,7 @@ import { useApi } from '../context/api';
 import { TaskRecord, TaskItem, ReportTask, ReportItem } from '../types/task';
 import { LoginSession } from '../types/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAppTheme } from '../theme/theme';
 
 import InventoryTask from './task-types/InventoryTask';
 import MovementTask from './task-types/MovementTask';
@@ -35,6 +36,7 @@ function getCurrentTimeString(): string {
 }
 
 export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
+  const { colors } = useAppTheme();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getTasks, getTaskItems, reportTasks, reportItem } = useApi();
@@ -46,6 +48,24 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
   const [initialProgress, setInitialProgress] = useState<Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string }>>({});
 
   const taskId = useMemo(() => (id ? parseInt(id, 10) : NaN), [id]);
+
+  const dynamicStyles = StyleSheet.create({
+    centerContainer: {
+      backgroundColor: colors.background,
+    },
+    infoText: {
+      color: colors.textSecondary,
+    },
+    errorText: {
+      color: colors.danger,
+    },
+    retryBtn: {
+      backgroundColor: colors.primary,
+    },
+    retryBtnTxt: {
+      color: colors.textOnPrimary,
+    },
+  });
 
   const fetchTaskAndItems = useCallback(async () => {
     if (isNaN(taskId)) {
@@ -99,7 +119,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
       updatedItems: Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string }>,
       allapotCode: number
     ) => {
-      if (!task) {return;}
+      if (!task) { return; }
 
       try {
         setLoading(true);
@@ -146,7 +166,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
             allapotCode === 4 ? 'A feladat lejelentése sikeresen megtörtént!' : 'A részeredmények sikeresen elmentve.'
           );
           if (allapotCode === 4) {
-            AsyncStorage.removeItem(`task_progress_${taskId}`).catch(() => {});
+            AsyncStorage.removeItem(`task_progress_${taskId}`).catch(() => { });
             navigate('/feladatok');
           } else {
             // Refresh local view
@@ -170,7 +190,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
     ) => {
       if (!task) return;
       // Persist locally
-      AsyncStorage.setItem(`task_progress_${taskId}`, JSON.stringify(updatedItems)).catch(() => {});
+      AsyncStorage.setItem(`task_progress_${taskId}`, JSON.stringify(updatedItems)).catch(() => { });
       // Silently report each changed item via PUT report-item — ignore all errors
       if (Object.keys(updatedItems).length === 0) return;
       try {
@@ -213,19 +233,19 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
 
   if (loading && !task) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#0369A1" />
-        <Text style={styles.infoText}>Feladat elemeinek betöltése...</Text>
+      <View style={[styles.centerContainer, dynamicStyles.centerContainer]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.infoText, dynamicStyles.infoText]}>Feladat elemeinek betöltése...</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={fetchTaskAndItems}>
-          <Text style={styles.retryBtnTxt}>Újra</Text>
+      <View style={[styles.centerContainer, dynamicStyles.centerContainer]}>
+        <Text style={[styles.errorText, dynamicStyles.errorText]}>{error}</Text>
+        <TouchableOpacity style={[styles.retryBtn, dynamicStyles.retryBtn]} onPress={fetchTaskAndItems}>
+          <Text style={[styles.retryBtnTxt, dynamicStyles.retryBtnTxt]}>Újra</Text>
         </TouchableOpacity>
       </View>
     );
@@ -233,8 +253,8 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
 
   if (!task) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>A feladat nem áll rendelkezésre.</Text>
+      <View style={[styles.centerContainer, dynamicStyles.centerContainer]}>
+        <Text style={[styles.errorText, dynamicStyles.errorText]}>A feladat nem áll rendelkezésre.</Text>
       </View>
     );
   }
@@ -254,6 +274,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           onSaveProgress={handleSaveProgress}
           onFinishTask={handleFinishTask}
           onCancel={() => navigate('/feladatok')}
+          onChat={() => navigate(`/feladat/${taskId}/chat`)}
         />
       );
     case 2:
@@ -266,6 +287,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           onSaveProgress={handleSaveProgress}
           onFinishTask={handleFinishTask}
           onCancel={() => navigate('/feladatok')}
+          onChat={() => navigate(`/feladat/${taskId}/chat`)}
         />
       );
     case 3:
@@ -277,6 +299,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           onSaveProgress={handleSaveProgress}
           onFinishTask={handleFinishTask}
           onCancel={() => navigate('/feladatok')}
+          onChat={() => navigate(`/feladat/${taskId}/chat`)}
         />
       );
     case 6:
@@ -289,6 +312,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           onSaveProgress={handleSaveProgress}
           onFinishTask={handleFinishTask}
           onCancel={() => navigate('/feladatok')}
+          onChat={() => navigate(`/feladat/${taskId}/chat`)}
         />
       );
     case 9:
@@ -300,6 +324,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           onSaveProgress={handleSaveProgress}
           onFinishTask={handleFinishTask}
           onCancel={() => navigate('/feladatok')}
+          onChat={() => navigate(`/feladat/${taskId}/chat`)}
         />
       );
     default:

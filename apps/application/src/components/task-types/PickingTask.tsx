@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { TaskRunnerProps } from './TaskRunnerProps';
 import { TaskItem } from '../../types/task';
+import { useAppTheme } from '../../theme/theme';
 
 export default function PickingTask({
   task,
@@ -20,7 +21,9 @@ export default function PickingTask({
   onSaveProgress,
   onFinishTask,
   onCancel,
+  onChat,
 }: TaskRunnerProps) {
+  const { colors } = useAppTheme();
   const [quickFinish, setQuickFinish] = useState(false);
   const [selectedItem, setSelectedItem] = useState<TaskItem | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -28,21 +31,154 @@ export default function PickingTask({
   const [issueState, setIssueState] = useState<number | null>(null);
   const [otherSuccess, setOtherSuccess] = useState(false);
 
+  const [sortOption, setSortOption] = useState<number>(0);
+  const [sortModalVisible, setSortModalVisible] = useState(false);
+
+  const SORT_OPTIONS = [
+    "Raktár / Cikknév szerint",
+    "Raktár / Tároló szerint",
+    "Raktár / Ügyfél szerint",
+    "Ügyfél szerint"
+  ];
+
   // Overridden items state (id -> override info)
   const [progress, setProgress] = useState<
     Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string }>
   >(initialProgress ?? {});
 
-  // Group items by headers (if consecutive items have different group values)
+  const dynamicStyles = StyleSheet.create({
+    container: {
+      backgroundColor: colors.background,
+    },
+    headerBar: {
+      backgroundColor: colors.cardBackground,
+      borderBottomColor: colors.border,
+    },
+    taskTitle: {
+      color: colors.textMain,
+    },
+    commentTxt: {
+      color: colors.textSecondary,
+    },
+    quickLabel: {
+      color: colors.textMain,
+    },
+    sortBar: {
+      backgroundColor: colors.cardBackground,
+      borderBottomColor: colors.border,
+    },
+    sortLabel: {
+      color: colors.textSecondary,
+    },
+    sortBtn: {
+      borderColor: colors.border,
+      backgroundColor: colors.backgroundAlt,
+    },
+    sortBtnTxt: {
+      color: colors.primary,
+    },
+    groupHeader: {
+      backgroundColor: colors.backgroundAlt,
+    },
+    groupHeaderTxt: {
+      color: colors.textSecondary,
+    },
+    itemCard: {
+      backgroundColor: colors.cardBackground,
+      borderColor: colors.border,
+    },
+    cikknev: {
+      color: colors.textMain,
+    },
+    detailsRowText: {
+      color: colors.textSecondary,
+    },
+    footerButtons: {
+      backgroundColor: colors.cardBackground,
+      borderTopColor: colors.border,
+    },
+    cancelBtn: {
+      backgroundColor: colors.secondary,
+    },
+    chatBtn: {
+      backgroundColor: colors.primary,
+    },
+    modalContent: {
+      backgroundColor: colors.cardBackground,
+    },
+    modalTitle: {
+      color: colors.textMain,
+    },
+    modalSub: {
+      color: colors.textMuted,
+    },
+    dialogMenuBtn: {
+      backgroundColor: colors.backgroundAlt,
+    },
+    dialogMenuBtnTxt: {
+      color: colors.textMain,
+    },
+    inputLabel: {
+      color: colors.textMain,
+    },
+    textInput: {
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+      color: colors.textMain,
+    },
+    checkboxLabel: {
+      color: colors.textMain,
+    },
+    modalCloseBtn: {
+      backgroundColor: colors.backgroundAlt,
+    },
+    modalCancelTxt: {
+      color: colors.textSecondary,
+    },
+    modalSaveBtn: {
+      backgroundColor: colors.success,
+    },
+    modalAddTxt: {
+      color: colors.textOnPrimary,
+    },
+  });
+
+  // Group and sort items by selected sorting strategy
   const sortedItems = useMemo(() => {
-    // Sort items by Att2 (warehouse group) and Cikknev
     return [...items].sort((a, b) => {
-      const gA = a.Att2 || '';
-      const gB = b.Att2 || '';
-      if (gA !== gB) {return gA.localeCompare(gB);}
-      return (a.Cikknev || '').localeCompare(b.Cikknev || '');
+      const rA = a.Att2 || a.Tarolo1?.toString() || '';
+      const rB = b.Att2 || b.Tarolo1?.toString() || '';
+
+      const tA = a.Tarolo || '';
+      const tB = b.Tarolo || '';
+
+      const uA = a.vevo || '';
+      const uB = b.vevo || '';
+
+      const cA = a.Cikknev || '';
+      const cB = b.Cikknev || '';
+
+      if (sortOption === 0) {
+        // Raktár / Cikknév szerint
+        if (rA !== rB) { return rA.localeCompare(rB); }
+        return cA.localeCompare(cB);
+      } else if (sortOption === 1) {
+        // Raktár / Tároló szerint
+        if (rA !== rB) { return rA.localeCompare(rB); }
+        if (tA !== tB) { return tA.localeCompare(tB); }
+        return cA.localeCompare(cB);
+      } else if (sortOption === 2) {
+        // Raktár / Ügyfél szerint
+        if (rA !== rB) { return rA.localeCompare(rB); }
+        if (uA !== uB) { return uA.localeCompare(uB); }
+        return cA.localeCompare(cB);
+      } else {
+        // Ügyfél szerint
+        if (uA !== uB) { return uA.localeCompare(uB); }
+        return cA.localeCompare(cB);
+      }
     });
-  }, [items]);
+  }, [items, sortOption]);
 
   const handleSingleClick = (item: TaskItem) => {
     const currentInfo = progress[item._id] || { allapot: item.allapot ?? 0 };
@@ -59,7 +195,7 @@ export default function PickingTask({
         },
       };
       setProgress(updated);
-      onSaveProgress(updated).catch(() => {});
+      onSaveProgress(updated).catch(() => { });
       return;
     }
 
@@ -83,7 +219,7 @@ export default function PickingTask({
       },
     };
     setProgress(updated);
-    onSaveProgress(updated).catch(() => {});
+    onSaveProgress(updated).catch(() => { });
   };
 
   const handleDoubleClick = (item: TaskItem) => {
@@ -96,7 +232,7 @@ export default function PickingTask({
       },
     };
     setProgress(updated);
-    onSaveProgress(updated).catch(() => {});
+    onSaveProgress(updated).catch(() => { });
   };
 
   const handleOpenIssueDialog = (item: TaskItem) => {
@@ -108,7 +244,7 @@ export default function PickingTask({
   };
 
   const handleSaveIssue = (allapot: number, defaultMegj?: string) => {
-    if (!selectedItem) {return;}
+    if (!selectedItem) { return; }
 
     const updated = {
       ...progress,
@@ -119,7 +255,7 @@ export default function PickingTask({
       },
     };
     setProgress(updated);
-    onSaveProgress(updated).catch(() => {});
+    onSaveProgress(updated).catch(() => { });
 
     setModalVisible(false);
     setSelectedItem(null);
@@ -135,23 +271,38 @@ export default function PickingTask({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dynamicStyles.container]}>
       {/* Quick Finish switch and header */}
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, dynamicStyles.headerBar]}>
         <View style={styles.taskInfo}>
-          <Text style={styles.taskTitle}>Összeszedés #{task._id}</Text>
-          <Text style={styles.commentTxt}>{task.comment || 'Nincs külön megjegyzés'}</Text>
+          <Text style={[styles.taskTitle, dynamicStyles.taskTitle]}>
+            {task.megnevezes || `Összeszedés #${task._id}`}
+          </Text>
+          <Text style={[styles.commentTxt, dynamicStyles.commentTxt]}>{task.comment || 'Nincs külön megjegyzés'}</Text>
         </View>
 
         <View style={styles.quickSetContainer}>
-          <Text style={styles.quickLabel}>Gyors lejelentés</Text>
+          <Text style={[styles.quickLabel, dynamicStyles.quickLabel]}>Gyors lejelentés</Text>
           <Switch
             value={quickFinish}
             onValueChange={setQuickFinish}
-            trackColor={{ false: '#767577', true: '#10B981' }}
-            thumbColor={Platform.OS === 'android' ? (quickFinish ? '#34D399' : '#F4F3F4') : undefined}
+            trackColor={{ false: '#767577', true: colors.success }}
+            thumbColor={Platform.OS === 'android' ? (quickFinish ? colors.success : '#F4F3F4') : undefined}
           />
         </View>
+      </View>
+
+      {/* Sorting bar */}
+      <View style={[styles.sortBar, dynamicStyles.sortBar]}>
+        <Text style={[styles.sortLabel, dynamicStyles.sortLabel]}>Rendezés:</Text>
+        <TouchableOpacity
+          style={[styles.sortBtn, dynamicStyles.sortBtn]}
+          onPress={() => setSortModalVisible(true)}
+        >
+          <Text style={[styles.sortBtnTxt, dynamicStyles.sortBtnTxt]}>
+            {SORT_OPTIONS[sortOption]} ▾
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -163,25 +314,25 @@ export default function PickingTask({
           const allapot = override ? override.allapot : (item.allapot ?? 0);
           const megj = override ? override.megjegyzes : item.megj;
 
-          let bg = '#FFFFFF';
-          let textC = '#0F172A';
-          let borderC = '#E2E8F0';
+          let bg = colors.cardBackground;
+          let textC = colors.textMain;
+          let borderC = colors.border;
           let statusLabelText = '';
 
           if (allapot === -1) {
-            bg = '#FEF08A'; // Yellow style
-            borderC = '#EAB308';
-            textC = '#854D0E';
+            bg = colors.warningBg; // Yellow style
+            borderC = colors.warning;
+            textC = colors.warning;
             statusLabelText = 'Részben';
           } else if (allapot === 1) {
-            bg = '#DCFCE7'; // Green style
-            borderC = '#22C55E';
-            textC = '#166534';
+            bg = colors.successBg; // Green style
+            borderC = colors.success;
+            textC = colors.success;
             statusLabelText = 'Kész';
           } else if (allapot > 1) {
-            bg = '#FEE2E2'; // Red style
-            borderC = '#EF4444';
-            textC = '#991B1B';
+            bg = colors.dangerBg; // Red style
+            borderC = colors.danger;
+            textC = colors.danger;
 
             const errLabels: Record<number, string> = {
               2: 'Nem találom',
@@ -194,19 +345,27 @@ export default function PickingTask({
             statusLabelText = errLabels[allapot] || 'Hiba';
           }
 
-          // Show Group Header if first item, or warehouse (Att2) changed
+          // Show Group Header if first item, or group key changed
+          const getGroupKey = (itm: TaskItem) => {
+            if (sortOption === 3) {
+              return itm.vevo || 'Sima ügyfél';
+            }
+            return itm.Att2 || itm.Tarolo1?.toString() || 'Fő raktár';
+          };
           const prevItem = index > 0 ? sortedItems[index - 1] : null;
-          const showHeader = !prevItem || prevItem.Att2 !== item.Att2;
+          const showHeader = !prevItem || getGroupKey(prevItem) !== getGroupKey(item);
 
           return (
             <View>
               {showHeader && (
-                <View style={styles.groupHeader}>
-                  <Text style={styles.groupHeaderTxt}>Raktár: {item.Att2 || 'Fő raktár'}</Text>
+                <View style={[styles.groupHeader, dynamicStyles.groupHeader]}>
+                  <Text style={[styles.groupHeaderTxt, dynamicStyles.groupHeaderTxt]}>
+                    {sortOption === 3 ? `Ügyfél: ${getGroupKey(item)}` : `Raktár: ${getGroupKey(item)}`}
+                  </Text>
                 </View>
               )}
 
-              <View style={[styles.itemCard, { backgroundColor: bg, borderColor: borderC }]}>
+              <View style={[styles.itemCard, dynamicStyles.itemCard, { backgroundColor: bg, borderColor: borderC }]}>
                 <TouchableOpacity
                   style={styles.clickableArea}
                   onPress={() => handleSingleClick(item)}
@@ -214,7 +373,8 @@ export default function PickingTask({
                   onLongPress={() => handleOpenIssueDialog(item)}
                 >
                   <View style={styles.infoWrapper}>
-                    <Text style={[styles.cikknev, { color: textC }]}>{item.Cikknev}</Text>
+                    <Text style={[styles.cikknev, dynamicStyles.cikknev, { color: textC }]}>{item.Cikknev}</Text>
+                    <Text style={[styles.detailsText, { color: textC }]}>{item.Etk}</Text>
                     <View style={styles.detailsRow}>
                       <Text style={[styles.detailsText, { color: textC }]}>
                         Tároló: <Text style={styles.boldText}>{item.Tarolo || '-'}</Text>
@@ -263,80 +423,79 @@ export default function PickingTask({
         }}
       />
 
-      <View style={styles.footerButtons}>
-        <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={onCancel}>
+      <View style={[styles.footerButtons, dynamicStyles.footerButtons]}>
+        <TouchableOpacity style={[styles.btn, styles.cancelBtn, dynamicStyles.cancelBtn]} onPress={onCancel}>
           <Text style={styles.cancelBtnText}>Vissza</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.btn, styles.finishBtn, !allDone && styles.finishBtnDisabled]}
-          onPress={submitFinish}
-          disabled={!allDone}
-        >
-          <Text style={styles.finishBtnText}>Lejelentés</Text>
-        </TouchableOpacity>
+        {onChat ? (
+          <TouchableOpacity style={[styles.btn, styles.chatBtn, dynamicStyles.chatBtn]} onPress={onChat}>
+            <Text style={styles.chatBtnText}>Csevegés 💬</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {/* Baj Van alert popup menu */}
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Hiba bejelentése</Text>
-            <Text style={styles.modalSub}>{selectedItem?.Cikknev}</Text>
+          <View style={[styles.modalContent, dynamicStyles.modalContent]}>
+            <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>Hiba bejelentése</Text>
+            <Text style={[styles.modalSub, dynamicStyles.modalSub]}>{selectedItem?.Cikknev}</Text>
 
             {issueState === null ? (
               <View style={styles.btnGrid}>
                 <TouchableOpacity
-                  style={styles.dialogMenuBtn}
+                  style={[styles.dialogMenuBtn, dynamicStyles.dialogMenuBtn]}
                   onPress={() => handleSaveIssue(2, 'Nem találom')}
                 >
-                  <Text style={styles.dialogMenuBtnTxt}>Nem találom</Text>
+                  <Text style={[styles.dialogMenuBtnTxt, dynamicStyles.dialogMenuBtnTxt]}>Nem találom</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.dialogMenuBtn}
+                  style={[styles.dialogMenuBtn, dynamicStyles.dialogMenuBtn]}
                   onPress={() => handleSaveIssue(3, 'Nincs kész')}
                 >
-                  <Text style={styles.dialogMenuBtnTxt}>Nincs kész</Text>
+                  <Text style={[styles.dialogMenuBtnTxt, dynamicStyles.dialogMenuBtnTxt]}>Nincs kész</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.dialogMenuBtn}
+                  style={[styles.dialogMenuBtn, dynamicStyles.dialogMenuBtn]}
                   onPress={() => handleSaveIssue(4, 'Nem érkezett meg')}
                 >
-                  <Text style={styles.dialogMenuBtnTxt}>Nem érkezett meg</Text>
+                  <Text style={[styles.dialogMenuBtnTxt, dynamicStyles.dialogMenuBtnTxt]}>Nem érkezett meg</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.dialogMenuBtn}
+                  style={[styles.dialogMenuBtn, dynamicStyles.dialogMenuBtn]}
                   onPress={() => setIssueState(5)}
                 >
-                  <Text style={styles.dialogMenuBtnTxt}>Sérült áru...</Text>
+                  <Text style={[styles.dialogMenuBtnTxt, dynamicStyles.dialogMenuBtnTxt]}>Sérült áru...</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.dialogMenuBtn}
+                  style={[styles.dialogMenuBtn, dynamicStyles.dialogMenuBtn]}
                   onPress={() => setIssueState(6)}
                 >
-                  <Text style={styles.dialogMenuBtnTxt}>Hiányos...</Text>
+                  <Text style={[styles.dialogMenuBtnTxt, dynamicStyles.dialogMenuBtnTxt]}>Hiányos...</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.dialogMenuBtn}
+                  style={[styles.dialogMenuBtn, dynamicStyles.dialogMenuBtn]}
                   onPress={() => setIssueState(7)}
                 >
-                  <Text style={styles.dialogMenuBtnTxt}>Egyéb eltérés...</Text>
+                  <Text style={[styles.dialogMenuBtnTxt, dynamicStyles.dialogMenuBtnTxt]}>Egyéb eltérés...</Text>
                 </TouchableOpacity>
               </View>
             ) : issueState === 7 ? (
               // Special prompt for state 7 (Egyéb: comment + Is successful?)
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Megjegyzés az egyéb eltéréshez:</Text>
+                <Text style={[styles.inputLabel, dynamicStyles.inputLabel]}>Megjegyzés az egyéb eltéréshez:</Text>
                 <TextInput
-                  style={styles.textInput}
+                  style={[styles.textInput, dynamicStyles.textInput]}
                   value={inputValue}
                   onChangeText={setInputValue}
                   placeholder="Hiba részletes leírása..."
+                  placeholderTextColor={colors.textSecondary}
                   autoFocus
                 />
 
@@ -347,51 +506,52 @@ export default function PickingTask({
                   >
                     {otherSuccess && <Text style={styles.checkedMark}>✓</Text>}
                   </TouchableOpacity>
-                  <Text style={styles.checkboxLabel}>Sikeres feladatvégzés?</Text>
+                  <Text style={[styles.checkboxLabel, dynamicStyles.checkboxLabel]}>Sikeres feladatvégzés?</Text>
                 </View>
 
                 <View style={styles.inputActions}>
                   <TouchableOpacity
-                    style={[styles.modalBtn, styles.modalCloseBtn]}
+                    style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn]}
                     onPress={() => setIssueState(null)}
                   >
-                    <Text style={styles.modalCancelTxt}>Vissza</Text>
+                    <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Vissza</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.modalBtn, styles.modalSaveBtn]}
+                    style={[styles.modalBtn, styles.modalSaveBtn, dynamicStyles.modalSaveBtn]}
                     onPress={() => handleSaveIssue(otherSuccess ? 1 : 7)}
                   >
-                    <Text style={styles.modalAddTxt}>Mentés</Text>
+                    <Text style={[styles.modalAddTxt, dynamicStyles.modalAddTxt]}>Mentés</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             ) : (
               // Numeric dynamic values for 5, 6
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>
+                <Text style={[styles.inputLabel, dynamicStyles.inputLabel]}>
                   {issueState === 5 ? 'Mennyi darab sérült?' : 'Mennyi hiányzik?'}
                 </Text>
                 <TextInput
-                  style={styles.textInput}
+                  style={[styles.textInput, dynamicStyles.textInput]}
                   value={inputValue}
                   onChangeText={setInputValue}
                   placeholder="pl. 5"
+                  placeholderTextColor={colors.textSecondary}
                   keyboardType="numeric"
                   autoFocus
                 />
 
                 <View style={styles.inputActions}>
                   <TouchableOpacity
-                    style={[styles.modalBtn, styles.modalCloseBtn]}
+                    style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn]}
                     onPress={() => setIssueState(null)}
                   >
-                    <Text style={styles.modalCancelTxt}>Vissza</Text>
+                    <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Vissza</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.modalBtn, styles.modalSaveBtn]}
+                    style={[styles.modalBtn, styles.modalSaveBtn, dynamicStyles.modalSaveBtn]}
                     onPress={() => handleSaveIssue(issueState)}
                   >
-                    <Text style={styles.modalAddTxt}>Mentés</Text>
+                    <Text style={[styles.modalAddTxt, dynamicStyles.modalAddTxt]}>Mentés</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -399,12 +559,54 @@ export default function PickingTask({
 
             {issueState === null && (
               <TouchableOpacity
-                style={[styles.modalBtn, styles.modalCloseBtn, { marginTop: 12 }]}
+                style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn, { marginTop: 12, minHeight: 40 }]}
                 onPress={() => setModalVisible(false)}
               >
-                <Text style={styles.modalCancelTxt}>Mégse</Text>
+                <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Mégse</Text>
               </TouchableOpacity>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Sort options dialog */}
+      <Modal visible={sortModalVisible} transparent animationType="fade" onRequestClose={() => setSortModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, dynamicStyles.modalContent]}>
+            <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>Rendezési opciók</Text>
+            <Text style={[styles.modalSub, dynamicStyles.modalSub]}>Válassz egy rendezési szempontot:</Text>
+
+            <View style={styles.btnGrid}>
+              {SORT_OPTIONS.map((opt, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={[
+                    styles.dialogMenuBtn,
+                    dynamicStyles.dialogMenuBtn,
+                    sortOption === idx && { borderColor: colors.primary, borderWidth: 1.5 }
+                  ]}
+                  onPress={() => {
+                    setSortOption(idx);
+                    setSortModalVisible(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.dialogMenuBtnTxt,
+                    dynamicStyles.dialogMenuBtnTxt,
+                    sortOption === idx && { color: colors.primary, fontWeight: 'bold' }
+                  ]}>
+                    {opt}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn, { marginTop: 12, minHeight: 40 }]}
+              onPress={() => setSortModalVisible(false)}
+            >
+              <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Mégse</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -441,11 +643,39 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontStyle: 'italic',
   },
+  sortBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    gap: 8,
+  },
+  sortLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  sortBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  sortBtnTxt: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#0284C7',
+  },
   quickSetContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#F1F5F9',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
@@ -453,7 +683,6 @@ const styles = StyleSheet.create({
   quickLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#475569',
   },
   listContent: {
     padding: 12,
@@ -569,6 +798,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#64748B',
   },
   cancelBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  chatBtn: {
+    backgroundColor: '#0284C7',
+  },
+  chatBtnText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
   },

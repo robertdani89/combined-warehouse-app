@@ -13,6 +13,7 @@ export interface TaskRecord {
   [key: string]: unknown;
   items?: TaskItem[];
   messages?: TaskMessage[];
+  hasUnread?: boolean;
 }
 
 export interface ReportLogEntry {
@@ -43,7 +44,7 @@ export class TasksService {
   constructor(
     private readonly mssqlService: MssqlService,
     private readonly messagesService: MessagesService,
-  ) {}
+  ) { }
 
   private async safeQuery<T>(
     context: string,
@@ -73,14 +74,13 @@ export class TasksService {
 
   async getTasks(userName: string): Promise<TaskRecord[]> {
     const sql = `
-      SELECT fel.[_id], allapot, [felado], [fel_tipus], m.megnevezes, surgosseg,
+      SELECT fel.[_id], allapot, [felado], [fel_tipus], surgosseg,
       CONVERT(varchar(5), befejezte, 108) AS befejezte,
       CONVERT(varchar(5), elkezdte, 108) AS elkezdte,
       CONVERT(varchar(19), [datum], 120) AS datum,
       CONVERT(varchar(16), kelt, 120) AS kelt,
-      [hivatkozas], ISNULL(comment, '') comment, fel.megnevezes hiv
+      [hivatkozas], ISNULL(comment, '') comment, fel.megnevezes
       FROM [Raktaros_feladatok] fel
-      INNER JOIN [Raktaros_feladatok_megnevezesek] m ON m._id = fel_tipus
       WHERE raktaros = @p0 AND datum = CONVERT(date, SYSDATETIME());
     `;
 
@@ -89,14 +89,17 @@ export class TasksService {
 
     for (const task of tasks) {
       taskIds.push(task._id);
-      if ((task.allapot ?? 0) < 5) {
-        task.items = await this.getTaskItems(task._id);
-      }
-      task.messages = await this.messagesService.getUzenetek(task._id, userName);
+      // if ((task.allapot ?? 0) < 5) {
+      //   task.items = await this.getTaskItems(task._id);
+      // }
+      task.messages = await this.messagesService.getMessages(task._id);
+      task.hasUnread = await this.messagesService.hasUnreadMessages(task._id, userName);
     }
 
     if (taskIds.length > 0) {
-      await this.updateTaskStatusReceived(taskIds);
+      this.updateTaskStatusReceived(taskIds).catch((error) => {
+        console.error('Failed to update task status to received:', error);
+      });
     }
 
     return tasks;
@@ -191,34 +194,34 @@ export class TasksService {
   }
 
   async reportTask(task: ReportTask, timeOffset: number): Promise<void> {
-      if (typeof task.allapot !== 'number') {
-        return;
-      }
+    if (typeof task.allapot !== 'number') {
+      return;
+    }
 
-      await this.safeExecute(
-        'reportTasks.updateStatus',
-        `
+    await this.safeExecute(
+      'reportTasks.updateStatus',
+      `
         UPDATE [Raktaros_feladatok]
         SET allapot = @p1
         WHERE _id = @p0 AND allapot != @p1;
         `,
-        [task.id, task.allapot],
-      );
+      [task.id, task.allapot],
+    );
 
-      if (task.elkezdte !== undefined) {
-        await this.safeExecute(
-          'reportTasks.completeTask',
-          `
+    if (task.elkezdte !== undefined) {
+      await this.safeExecute(
+        'reportTasks.completeTask',
+        `
           SET NOCOUNT ON;
           UPDATE [Raktaros_feladatok]
           SET allapot = 5, [befejezte] = @p0, [elkezdte] = @p1, [lejelentette] = GETDATE()
           WHERE _id = @p2;
           `,
-          [task.befejezte ?? null, task.elkezdte ?? null, task.id],
-        );
+        [task.befejezte ?? null, task.elkezdte ?? null, task.id],
+      );
 
-        await this.reportItems(task, timeOffset);
-      }
+      await this.reportItems(task, timeOffset);
+    }
   }
 
   async reportItems(task: ReportTask, timeOffset: number): Promise<void> {
@@ -230,64 +233,64 @@ export class TasksService {
   }
 
   async reportItem(item: ReportItem, timeOffset?: number): Promise<void> {
-      let itemId = item.tetel_id;
-      timeOffset ??= 0;
+    let itemId = item.tetel_id;
+    timeOffset ??= 0;
 
-      // if (!itemId) {
-      //   const sourceId = item._id ?? -1;
-      //   const existing = await this.safeQuery<{ tetelsz: number }>(
-      //     'reportItems.findExistingItem',
-      //     `
-      //     SELECT ISNULL((
-      //       SELECT _id
-      //       FROM raktaros_feladat_tetelek
-      //       WHERE FeladatId = @p0 AND Att5 = @p1
-      //     ), -1) tetelsz;
-      //     `,
-      //     [taskId, sourceId],
-      //   );
+    // if (!itemId) {
+    //   const sourceId = item._id ?? -1;
+    //   const existing = await this.safeQuery<{ tetelsz: number }>(
+    //     'reportItems.findExistingItem',
+    //     `
+    //     SELECT ISNULL((
+    //       SELECT _id
+    //       FROM raktaros_feladat_tetelek
+    //       WHERE FeladatId = @p0 AND Att5 = @p1
+    //     ), -1) tetelsz;
+    //     `,
+    //     [taskId, sourceId],
+    //   );
 
-      //   itemId = existing[0]?.tetelsz ?? -1;
+    //   itemId = existing[0]?.tetelsz ?? -1;
 
-      //   if (itemId === -1) {
-      //     const inserted = await this.safeQuery<{ tetelsz: number }>(
-      //       'reportItems.insertItem',
-      //       `
-      //       SET NOCOUNT ON;
-      //       INSERT raktaros_feladat_tetelek (FeladatId, Etk, Tarolo, Att5)
-      //       VALUES (@p0, @p1, @p2, @p3);
-      //       SELECT CONVERT(int, SCOPE_IDENTITY()) as tetelsz;
-      //       `,
-      //       [taskId, item.tetel_etk ?? null, item.tetel_tarolohely ?? null, sourceId],
-      //     );
-      //     itemId = inserted[0]?.tetelsz;
-      //   }
-      // }
+    //   if (itemId === -1) {
+    //     const inserted = await this.safeQuery<{ tetelsz: number }>(
+    //       'reportItems.insertItem',
+    //       `
+    //       SET NOCOUNT ON;
+    //       INSERT raktaros_feladat_tetelek (FeladatId, Etk, Tarolo, Att5)
+    //       VALUES (@p0, @p1, @p2, @p3);
+    //       SELECT CONVERT(int, SCOPE_IDENTITY()) as tetelsz;
+    //       `,
+    //       [taskId, item.tetel_etk ?? null, item.tetel_tarolohely ?? null, sourceId],
+    //     );
+    //     itemId = inserted[0]?.tetelsz;
+    //   }
+    // }
 
-      for (const log of item.naplo ?? []) {
-        let time = log.naplo_ido ?? null;
-        if (time && timeOffset) {
-          const timestamp = Math.floor(new Date(time).getTime() / 1000);
-          if (!Number.isNaN(timestamp)) {
-            time = new Date((timestamp + timeOffset) * 1000)
-              .toISOString()
-              .slice(0, 19)
-              .replace('T', ' ');
-          }
+    for (const log of item.naplo ?? []) {
+      let time = log.naplo_ido ?? null;
+      if (time && timeOffset) {
+        const timestamp = Math.floor(new Date(time).getTime() / 1000);
+        if (!Number.isNaN(timestamp)) {
+          time = new Date((timestamp + timeOffset) * 1000)
+            .toISOString()
+            .slice(0, 19)
+            .replace('T', ' ');
         }
-
-        await this.safeExecute(
-          'reportItems.reportItemLog',
-          'EXEC raktar_feladat_report_tetel @id = @p0, @allapot = @p1, @menny = @p2, @megjegyzes = @p3, @ido = @p4;',
-          [
-            itemId ?? null,
-            log.naplo_allapot ?? null,
-            log.naplo_mennyiseg ?? null,
-            log.naplo_megjegyzes ?? null,
-            time,
-          ],
-        );
       }
+
+      await this.safeExecute(
+        'reportItems.reportItemLog',
+        'EXEC raktar_feladat_report_tetel @id = @p0, @allapot = @p1, @menny = @p2, @megjegyzes = @p3, @ido = @p4;',
+        [
+          itemId ?? null,
+          log.naplo_allapot ?? null,
+          log.naplo_mennyiseg ?? null,
+          log.naplo_megjegyzes ?? null,
+          time,
+        ],
+      );
+    }
   }
 
   async getFreeTasks(): Promise<Array<Record<string, unknown>>> {

@@ -21,8 +21,17 @@ export class AuthController {
   }
 
   @Post('token')
-  async createToken(@Body() body: CreateTokenRequest): Promise<TokenInfo> {
-    return this.authService.createToken(body.userName);
+  async createToken(@Body() body: CreateTokenRequest): Promise<any> {
+    const info = await this.authService.createToken(body.userName);
+    return {
+      new_token: info.new_token,
+      new_key: info.new_key,
+      expires: info.expires,
+      key: info.new_key,
+      token: info.new_token,
+      EXPIRED: 0,
+      user: body.userName,
+    };
   }
 
   @Get('user-info')

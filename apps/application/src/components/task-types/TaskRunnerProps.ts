@@ -7,4 +7,5 @@ export interface TaskRunnerProps {
   onSaveProgress: (updatedItems: Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string }>) => Promise<void>;
   onFinishTask: (updatedItems: Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string }>) => Promise<void>;
   onCancel: () => void;
+  onChat: () => void;
 }

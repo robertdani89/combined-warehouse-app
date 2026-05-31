@@ -6,6 +6,7 @@ import { Navigate, Route, Routes } from 'react-router';
 import LoginScreen from './src/components/LoginScreen';
 import TasksScreen from './src/components/TasksScreen';
 import TaskDetailScreen from './src/components/TaskDetailScreen';
+import ChatScreen from './src/components/ChatScreen';
 import FinishedTasksScreen from './src/components/FinishedTasksScreen';
 import { ApiProvider } from './src/context/api';
 import RootRouter from './src/router/RootRouter';
@@ -111,6 +112,16 @@ export default function App() {
               element={
                 session ? (
                   <TaskDetailScreen session={session} />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            />
+            <Route
+              path="/feladat/:id/chat"
+              element={
+                session ? (
+                  <ChatScreen session={session} />
                 ) : (
                   <Navigate to="/" replace />
                 )

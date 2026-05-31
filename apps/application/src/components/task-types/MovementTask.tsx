@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { TaskRunnerProps } from './TaskRunnerProps';
 import { TaskItem } from '../../types/task';
+import { useAppTheme } from '../../theme/theme';
 
 export default function MovementTask({
   task,
@@ -18,16 +19,137 @@ export default function MovementTask({
   onSaveProgress,
   onFinishTask,
   onCancel,
+  onChat,
 }: TaskRunnerProps) {
+  const { colors } = useAppTheme();
   const [selectedItem, setSelectedItem] = useState<TaskItem | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [issueState, setIssueState] = useState<number | null>(null);
 
+  const [sortOption, setSortOption] = useState<number>(0);
+  const [sortModalVisible, setSortModalVisible] = useState(false);
+
+  const SORT_OPTIONS = [
+    "Tárolóhely szerint",
+    "Cikknév szerint"
+  ];
+
   // Overridden items state (id -> override info)
   const [progress, setProgress] = useState<
     Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string }>
   >(initialProgress ?? {});
+
+  const dynamicStyles = StyleSheet.create({
+    container: {
+      backgroundColor: colors.background,
+    },
+    taskInfoContainer: {
+      backgroundColor: colors.cardBackground,
+      borderBottomColor: colors.border,
+    },
+    sortBar: {
+      backgroundColor: colors.cardBackground,
+      borderBottomColor: colors.border,
+    },
+    sortLabel: {
+      color: colors.textSecondary,
+    },
+    sortBtn: {
+      borderColor: colors.border,
+      backgroundColor: colors.backgroundAlt,
+    },
+    sortBtnTxt: {
+      color: colors.primary,
+    },
+    taskTitle: {
+      color: colors.textMain,
+    },
+    taskComment: {
+      color: colors.textMuted,
+    },
+    itemCard: {
+      backgroundColor: colors.cardBackground,
+      borderColor: colors.border,
+    },
+    boldText: {
+      color: colors.textMain,
+    },
+    commentText: {
+      color: colors.textMuted,
+    },
+    footerButtons: {
+      backgroundColor: colors.cardBackground,
+      borderTopColor: colors.border,
+    },
+    cancelBtn: {
+      backgroundColor: colors.secondary,
+    },
+    chatBtn: {
+      backgroundColor: colors.primary,
+    },
+    modalContent: {
+      backgroundColor: colors.cardBackground,
+    },
+    modalTitle: {
+      color: colors.textMain,
+    },
+    modalSub: {
+      color: colors.textMuted,
+    },
+    dialogMenuBtn: {
+      backgroundColor: colors.backgroundAlt,
+      borderColor: colors.border,
+    },
+    dialogMenuBtnTxt: {
+      color: colors.textMain,
+    },
+    inputLabel: {
+      color: colors.textMain,
+    },
+    textInput: {
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+      color: colors.textMain,
+    },
+    modalCloseBtn: {
+      backgroundColor: colors.backgroundAlt,
+    },
+    modalCancelTxt: {
+      color: colors.textSecondary,
+    },
+    modalSaveBtn: {
+      backgroundColor: colors.primary,
+    },
+    modalAddTxt: {
+      color: colors.textOnPrimary,
+    },
+    btnCircle: {
+      backgroundColor: colors.backgroundAlt,
+    },
+    btnCircleTxt: {
+      color: colors.textSecondary,
+    },
+  });
+
+  // Sort items based on active sorting choice
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => {
+      const tA = a.Tarolo || '';
+      const tB = b.Tarolo || '';
+
+      const cA = a.Cikknev || '';
+      const cB = b.Cikknev || '';
+
+      if (sortOption === 0) {
+        if (tA !== tB) { return tA.localeCompare(tB); }
+        return cA.localeCompare(cB);
+      } else {
+        if (cA !== cB) { return cA.localeCompare(cB); }
+        return tA.localeCompare(tB);
+      }
+    });
+  }, [items, sortOption]);
 
   const handleToggleDone = (item: TaskItem) => {
     const currentInfo = progress[item._id] || { allapot: item.allapot ?? 0 };
@@ -42,7 +164,7 @@ export default function MovementTask({
       },
     };
     setProgress(updated);
-    onSaveProgress(updated).catch(() => {});
+    onSaveProgress(updated).catch(() => { });
   };
 
   const handleOpenIssueDialog = (item: TaskItem) => {
@@ -53,7 +175,7 @@ export default function MovementTask({
   };
 
   const handleSaveIssue = (allapot: number, defaultMegj?: string) => {
-    if (!selectedItem) {return;}
+    if (!selectedItem) { return; }
 
     const updated = {
       ...progress,
@@ -64,7 +186,7 @@ export default function MovementTask({
       },
     };
     setProgress(updated);
-    onSaveProgress(updated).catch(() => {});
+    onSaveProgress(updated).catch(() => { });
 
     setModalVisible(false);
     setSelectedItem(null);
@@ -84,20 +206,20 @@ export default function MovementTask({
     const allapot = override ? override.allapot : (item.allapot ?? 0);
     const megj = override ? override.megjegyzes : item.megj;
 
-    let bg = '#FFFFFF';
-    let textC = '#0F172A';
-    let borderC = '#E2E8F0';
+    let bg = colors.cardBackground;
+    let textC = colors.textMain;
+    let borderC = colors.border;
     let statusText = 'Kiadva';
 
     if (allapot === 1) {
-      bg = '#DCFCE7'; // Green
-      borderC = '#22C55E';
-      textC = '#166534';
+      bg = colors.successBg; // Green
+      borderC = colors.success;
+      textC = colors.success;
       statusText = 'Kikészítve';
     } else if (allapot > 1) {
-      bg = '#FEE2E2'; // Red
-      borderC = '#EF4444';
-      textC = '#991B1B';
+      bg = colors.dangerBg; // Red
+      borderC = colors.danger;
+      textC = colors.danger;
 
       const stateLabels: Record<number, string> = {
         3: 'Nem találom',
@@ -111,168 +233,183 @@ export default function MovementTask({
     }
 
     return (
-      <View style={[styles.itemCard, { backgroundColor: bg, borderColor: borderC }]}>
+      <View style={[styles.itemCard, dynamicStyles.itemCard, { backgroundColor: bg, borderColor: borderC }]}>
         <View style={styles.cardMain}>
           <View style={styles.itemInfo}>
             <Text style={[styles.cikknev, { color: textC }]}>{item.Cikknev}</Text>
+            <Text style={[styles.cikknev, { color: textC, fontSize: 10 }]}>{item.Etk}</Text>
             <View style={styles.detailsRow}>
               <Text style={[styles.detailsText, { color: textC }]}>
-                Tárolóhely: <Text style={styles.boldText}>{item.Tarolo || '-'}</Text>
+                Tárolóhely: <Text style={[styles.boldText, dynamicStyles.boldText]}>{item.Tarolo || '-'}</Text>
               </Text>
               <Text style={[styles.detailsText, { color: textC }]}>
-                Mennyiség: <Text style={styles.boldText}>{item.Mennyiseg} {item.Mero || 'db'}</Text>
+                Mennyiség: <Text style={[styles.boldText, dynamicStyles.boldText]}>{item.Mennyiseg} {item.Mero || 'db'}</Text>
               </Text>
             </View>
             {megj ? (
-              <Text style={[styles.commentText, { color: textC }]}>Megjegyzés: {megj}</Text>
+              <Text style={[styles.commentText, dynamicStyles.commentText, { color: textC }]}>Megjegyzés: {megj}</Text>
             ) : null}
           </View>
+        </View>
+
+        <View style={styles.statusRow}>
+          <Text style={[styles.statusText, { color: textC }]}>Állapot: {statusText}</Text>
 
           <View style={styles.actions}>
             {/* Quick Toggle Done */}
             <TouchableOpacity
-              style={[styles.btnCircle, allapot === 1 && styles.btnCircleDone]}
+              style={[styles.btnCircle, dynamicStyles.btnCircle, allapot === 1 && styles.btnCircleDone]}
               onPress={() => handleToggleDone(item)}
             >
-              <Text style={[styles.btnCircleTxt, { color: allapot === 1 ? '#FFFFFF' : '#475569' }]}>
+              <Text style={[styles.btnCircleTxt, dynamicStyles.btnCircleTxt, { color: allapot === 1 ? '#FFFFFF' : colors.textSecondary }]}>
                 ✓
               </Text>
             </TouchableOpacity>
 
             {/* Baj Van button */}
             <TouchableOpacity
-              style={[styles.btnCircle, allapot > 1 && styles.btnCircleError]}
+              style={[styles.btnCircle, dynamicStyles.btnCircle, allapot > 1 && styles.btnCircleError]}
               onPress={() => handleOpenIssueDialog(item)}
             >
-              <Text style={[styles.btnCircleTxt, { color: allapot > 1 ? '#FFFFFF' : '#EF4444' }]}>
+              <Text style={[styles.btnCircleTxt, dynamicStyles.btnCircleTxt, { color: allapot > 1 ? '#FFFFFF' : colors.danger }]}>
                 ⚠
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
-
-        <View style={styles.statusRow}>
-          <Text style={[styles.statusText, { color: textC }]}>Állapot: {statusText}</Text>
         </View>
       </View>
     );
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.taskInfoContainer}>
-        <Text style={styles.taskTitle}>Mozgás Feladat #{task._id}</Text>
-        {task.comment ? <Text style={styles.taskComment}>Megjegyzés: {task.comment}</Text> : null}
+    <View style={[styles.container, dynamicStyles.container]}>
+      <View style={[styles.taskInfoContainer, dynamicStyles.taskInfoContainer]}>
+        <Text style={[styles.taskTitle, dynamicStyles.taskTitle]}>
+          {task.megnevezes || `Mozgás Feladat #${task._id}`}
+        </Text>
+        {task.comment ? <Text style={[styles.taskComment, dynamicStyles.taskComment]}>Megjegyzés: {task.comment}</Text> : null}
+      </View>
+
+      {/* Sorting bar */}
+      <View style={[styles.sortBar, dynamicStyles.sortBar]}>
+        <Text style={[styles.sortLabel, dynamicStyles.sortLabel]}>Rendezés:</Text>
+        <TouchableOpacity
+          style={[styles.sortBtn, dynamicStyles.sortBtn]}
+          onPress={() => setSortModalVisible(true)}
+        >
+          <Text style={[styles.sortBtnTxt, dynamicStyles.sortBtnTxt]}>
+            {SORT_OPTIONS[sortOption]} ▾
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
-        data={items}
+        data={sortedItems}
         keyExtractor={(item) => item._id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
       />
 
-      <View style={styles.footerButtons}>
-        <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={onCancel}>
+      <View style={[styles.footerButtons, dynamicStyles.footerButtons]}>
+        <TouchableOpacity style={[styles.btn, styles.cancelBtn, dynamicStyles.cancelBtn]} onPress={onCancel}>
           <Text style={styles.cancelBtnText}>Vissza</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.btn, styles.finishBtn, !allDone && styles.finishBtnDisabled]}
-          onPress={submitFinish}
-          disabled={!allDone}
-        >
-          <Text style={styles.finishBtnText}>Lejelentés</Text>
-        </TouchableOpacity>
+        {onChat ? (
+          <TouchableOpacity style={[styles.btn, styles.chatBtn, dynamicStyles.chatBtn]} onPress={onChat}>
+            <Text style={styles.chatBtnText}>Csevegés 💬</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {/* Baj Van / Eltérés modal */}
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Hiba bejelentése</Text>
-            <Text style={styles.modalSub}>{selectedItem?.Cikknev}</Text>
+          <View style={[styles.modalContent, dynamicStyles.modalContent]}>
+            <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>Hiba bejelentése</Text>
+            <Text style={[styles.modalSub, dynamicStyles.modalSub]}>{selectedItem?.Cikknev}</Text>
 
             {issueState === null ? (
               <View style={styles.btnGrid}>
                 <TouchableOpacity
-                  style={styles.dialogMenuBtn}
+                  style={[styles.dialogMenuBtn, dynamicStyles.dialogMenuBtn]}
                   onPress={() => handleSaveIssue(3, 'Nem találom')}
                 >
-                  <Text style={styles.dialogMenuBtnTxt}>Nem találom</Text>
+                  <Text style={[styles.dialogMenuBtnTxt, dynamicStyles.dialogMenuBtnTxt]}>Nem találom</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.dialogMenuBtn}
+                  style={[styles.dialogMenuBtn, dynamicStyles.dialogMenuBtn]}
                   onPress={() => handleSaveIssue(4, 'Nincs kész')}
                 >
-                  <Text style={styles.dialogMenuBtnTxt}>Nincs kész</Text>
+                  <Text style={[styles.dialogMenuBtnTxt, dynamicStyles.dialogMenuBtnTxt]}>Nincs kész</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.dialogMenuBtn}
+                  style={[styles.dialogMenuBtn, dynamicStyles.dialogMenuBtn]}
                   onPress={() => handleSaveIssue(5, 'Nem érkezett meg')}
                 >
-                  <Text style={styles.dialogMenuBtnTxt}>Nem érkezett meg</Text>
+                  <Text style={[styles.dialogMenuBtnTxt, dynamicStyles.dialogMenuBtnTxt]}>Nem érkezett meg</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.dialogMenuBtn}
+                  style={[styles.dialogMenuBtn, dynamicStyles.dialogMenuBtn]}
                   onPress={() => {
                     setIssueState(6); // Sérült áru
                   }}
                 >
-                  <Text style={styles.dialogMenuBtnTxt}>Sérült áru...</Text>
+                  <Text style={[styles.dialogMenuBtnTxt, dynamicStyles.dialogMenuBtnTxt]}>Sérült áru...</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.dialogMenuBtn}
+                  style={[styles.dialogMenuBtn, dynamicStyles.dialogMenuBtn]}
                   onPress={() => {
                     setIssueState(7); // Hiányos
                   }}
                 >
-                  <Text style={styles.dialogMenuBtnTxt}>Hiányos...</Text>
+                  <Text style={[styles.dialogMenuBtnTxt, dynamicStyles.dialogMenuBtnTxt]}>Hiányos...</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.dialogMenuBtn}
+                  style={[styles.dialogMenuBtn, dynamicStyles.dialogMenuBtn]}
                   onPress={() => {
                     setIssueState(8); // Egyéb
                   }}
                 >
-                  <Text style={styles.dialogMenuBtnTxt}>Egyéb...</Text>
+                  <Text style={[styles.dialogMenuBtnTxt, dynamicStyles.dialogMenuBtnTxt]}>Egyéb...</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>
+                <Text style={[styles.inputLabel, dynamicStyles.inputLabel]}>
                   {issueState === 6
                     ? 'Mennyi sérült?'
                     : issueState === 7
-                    ? 'Mennyi hiányzik?'
-                    : 'Egyéb megjegyzés:'}
+                      ? 'Mennyi hiányzik?'
+                      : 'Egyéb megjegyzés:'}
                 </Text>
                 <TextInput
-                  style={styles.textInput}
+                  style={[styles.textInput, dynamicStyles.textInput]}
                   value={inputValue}
                   onChangeText={setInputValue}
                   placeholder="Kérjük adja meg az értéket/leírást..."
+                  placeholderTextColor={colors.textSecondary}
                   keyboardType={issueState === 6 || issueState === 7 ? 'numeric' : 'default'}
                   autoFocus
                 />
 
                 <View style={styles.inputActions}>
                   <TouchableOpacity
-                    style={[styles.modalBtn, styles.modalCloseBtn]}
+                    style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn]}
                     onPress={() => setIssueState(null)}
                   >
-                    <Text style={styles.modalCancelTxt}>Vissza</Text>
+                    <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Vissza</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.modalBtn, styles.modalSaveBtn]}
+                    style={[styles.modalBtn, styles.modalSaveBtn, dynamicStyles.modalSaveBtn]}
                     onPress={() => handleSaveIssue(issueState)}
                   >
-                    <Text style={styles.modalAddTxt}>Mentés</Text>
+                    <Text style={[styles.modalAddTxt, dynamicStyles.modalAddTxt]}>Mentés</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -280,12 +417,54 @@ export default function MovementTask({
 
             {issueState === null && (
               <TouchableOpacity
-                style={[styles.modalBtn, styles.modalCloseBtn, { marginTop: 12 }]}
+                style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn, { marginTop: 12, minHeight: 44 }]}
                 onPress={() => setModalVisible(false)}
               >
-                <Text style={styles.modalCancelTxt}>Mégse</Text>
+                <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Mégse</Text>
               </TouchableOpacity>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Sort options dialog */}
+      <Modal visible={sortModalVisible} transparent animationType="fade" onRequestClose={() => setSortModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, dynamicStyles.modalContent]}>
+            <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>Rendezési opciók</Text>
+            <Text style={[styles.modalSub, dynamicStyles.modalSub]}>Válassz egy rendezési szempontot:</Text>
+
+            <View style={styles.btnGrid}>
+              {SORT_OPTIONS.map((opt, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={[
+                    styles.dialogMenuBtn,
+                    dynamicStyles.dialogMenuBtn,
+                    sortOption === idx && { borderColor: colors.primary, borderWidth: 1.5 }
+                  ]}
+                  onPress={() => {
+                    setSortOption(idx);
+                    setSortModalVisible(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.dialogMenuBtnTxt,
+                    dynamicStyles.dialogMenuBtnTxt,
+                    sortOption === idx && { color: colors.primary, fontWeight: 'bold' }
+                  ]}>
+                    {opt}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn, { marginTop: 12, minHeight: 40 }]}
+              onPress={() => setSortModalVisible(false)}
+            >
+              <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Mégse</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -315,6 +494,35 @@ const styles = StyleSheet.create({
     color: '#475569',
     marginTop: 4,
     fontStyle: 'italic',
+  },
+  sortBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    gap: 8,
+  },
+  sortLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  sortBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  sortBtnTxt: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#0284C7',
   },
   listContent: {
     padding: 12,
@@ -379,6 +587,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   statusRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderTopWidth: 1,
     borderTopColor: 'rgba(0, 0, 0, 0.05)',
     marginTop: 10,
@@ -407,6 +619,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#64748B',
   },
   cancelBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  chatBtn: {
+    backgroundColor: '#0284C7',
+  },
+  chatBtnText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
   },

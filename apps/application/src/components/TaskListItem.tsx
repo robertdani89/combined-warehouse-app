@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { TaskRecord } from '../types/task';
+import { useAppTheme } from '../theme/theme';
 
 type TaskListItemProps = {
   task: TaskRecord;
@@ -7,33 +8,33 @@ type TaskListItemProps = {
 
 const TASK_TYPES = [
   'Leltár',
-  'Mozgás',
-  'Összesített nézet',
-  'Egyéb feladat',
-  'Egyéb feladat',
+  'NapiLeltár',
+  'Árumozgatás',
+  'Egyéb',
+  'Tranzit leltár',
+  'Készlet mozgás',
+  'Összeszedés',
+  'Bepakolás',
+  '',
   'Bevételezés',
-  'Komissió',
-  'Szállítás',
-  'Átvétel',
-  'Egyedi feladat',
 ] as const;
 
 const URGENCY_LABELS: Record<number, string> = {
   0: 'Azonnali',
   1: 'Normál',
-  2: 'Fontos',
-  3: 'Kiemelt',
+  2: 'Ráér',
 };
 
 const STATUS_LABELS: Record<number, string> = {
-  0: '',
-  1: '',
-  2: '',
-  3: 'Folyamatban',
-  4: 'Lejelentendő',
+  0: 'Rögzítve',
+  1: 'Kiosztva',
+  2: 'Megkapta',
+  3: 'Elkezdve',
+  4: 'Befejezve',
   5: 'Lejelentve',
-  6: 'Felfüggesztve',
-  7: 'Lejelentendő',
+  6: 'Ellenőrizve',
+  7: 'Felfüggesztve',
+  8: 'Meghiúsult',
 };
 
 const getTaskTypeLabel = (felTipus: TaskRecord['fel_tipus']): string => {
@@ -53,44 +54,73 @@ const getUrgencyLabel = (surgosseg: TaskRecord['surgosseg']): string | null => {
   return URGENCY_LABELS[surgosseg] ?? `Sürgősség: ${surgosseg}`;
 };
 
-const getStatusLabel = (allapot: TaskRecord['allapot']): string | null => {
-  if (typeof allapot !== 'number') {
-    return null;
-  }
-
-  const label = STATUS_LABELS[allapot];
-  return label ? label : null;
-};
-
 export default function TaskListItem({ task }: TaskListItemProps) {
+  const { colors } = useAppTheme();
   const urgency = getUrgencyLabel(task.surgosseg);
-  const statusLabel = getStatusLabel(task.allapot);
   const hasMessages = Array.isArray(task.messages) && task.messages.length > 0;
   const showDone = typeof task.allapot === 'number' && task.allapot >= 4;
 
+  const dynamicStyles = StyleSheet.create({
+    container: {
+      backgroundColor: colors.cardBackground,
+      borderColor: colors.border,
+    },
+    title: {
+      color: colors.textMain,
+    },
+    doneMark: {
+      color: colors.textMain,
+    },
+    chatMark: {
+      color: colors.textMain,
+    },
+    unreadBadge: {
+      backgroundColor: colors.dangerBg,
+      borderColor: colors.danger,
+    },
+    unreadText: {
+      color: colors.danger,
+    },
+    subtitle: {
+      color: colors.textMuted,
+    },
+    urgency: {
+      color: colors.textMuted,
+    },
+    secondary: {
+      color: colors.textSecondary,
+    },
+    comment: {
+      color: colors.textMain,
+    },
+  });
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dynamicStyles.container]}>
       <View style={styles.topRow}>
-        <Text style={styles.title}>{task.megnevezes ?? `Feladat #${task._id}`}</Text>
+        <Text style={[styles.title, dynamicStyles.title]}>{task.megnevezes ?? `${getTaskTypeLabel(task.fel_tipus)} #${task._id}`}</Text>
 
         <View style={styles.iconRow}>
-          {showDone ? <Text style={styles.doneMark}>☑</Text> : null}
-          {hasMessages ? <Text style={styles.chatMark}>💬</Text> : null}
+          {showDone ? <Text style={[styles.doneMark, dynamicStyles.doneMark]}>☑</Text> : null}
+          {task.hasUnread ? (
+            <View style={[styles.unreadBadge, dynamicStyles.unreadBadge]}>
+              <Text style={[styles.unreadText, dynamicStyles.unreadText]}>Új 🔴</Text>
+            </View>
+          ) : hasMessages ? (
+            <Text style={[styles.chatMark, dynamicStyles.chatMark]}>💬</Text>
+          ) : null}
         </View>
       </View>
 
       <View style={styles.metaRow}>
-        {urgency ? <Text style={styles.urgency}>{urgency}</Text> : null}
-        <Text style={styles.subtitle}>{getTaskTypeLabel(task.fel_tipus)}</Text>
+        {urgency && <Text style={[styles.urgency, dynamicStyles.urgency]}>{urgency}</Text>}
+        {task.megnevezes && <Text style={[styles.subtitle, dynamicStyles.subtitle]}>{getTaskTypeLabel(task.fel_tipus)} #{task._id}</Text>}
       </View>
 
-      {statusLabel ? <Text style={styles.status}>{statusLabel}</Text> : null}
-
-      <Text style={styles.secondary}>#{task._id}</Text>
-      {task.felado ? <Text style={styles.secondary}>Feladó: {task.felado}</Text> : null}
-      {task.kelt ? <Text style={styles.secondary}>Kelt: {task.kelt}</Text> : null}
-      {task.befejezte ? <Text style={styles.secondary}>Befejeztem: {task.befejezte}</Text> : null}
-      {task.comment ? <Text style={styles.comment}>{task.comment}</Text> : null}
+      {task.felado && <Text style={[styles.secondary, dynamicStyles.secondary]}>Feladó: {task.felado}</Text>}
+      {task.kelt && <Text style={[styles.secondary, dynamicStyles.secondary]}>Kelt: {task.kelt}</Text>}
+      {task.befejezte && <Text style={[styles.secondary, dynamicStyles.secondary]}>Befejeztem: {task.befejezte}</Text>}
+      {task.comment && <Text style={[styles.comment, dynamicStyles.comment]}>{task.comment}</Text>}
     </View>
   );
 }
@@ -133,6 +163,19 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontSize: 22,
     lineHeight: 24,
+  },
+  unreadBadge: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#EF4444',
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  unreadText: {
+    color: '#DC2626',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   subtitle: {
     color: '#374151',
