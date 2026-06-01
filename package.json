@@ -6,7 +6,8 @@
     "apps/*"
   ],
   "overrides": {
-    "react-router": "6.30.3"
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
   },
   "scripts": {
     "dev:website": "npm run dev --workspace=apps/website",
