@@ -22,7 +22,11 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.robertdani89.villumenraktar"
+      "package": "com.robertdani89.villumenraktar",
+      "permissions": [
+        "android.permission.INTERNET"
+      ],
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
