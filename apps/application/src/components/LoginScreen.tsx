@@ -70,6 +70,22 @@ export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScr
     try {
       const session = await login(trimmedUser, trimmedPass);
       await onLoginSuccess(session);
+
+      // // Register for push notifications and send token to backend if available
+      // try {
+      //   const { getDevicePushToken } = await import('../utils/push');
+      //   const token = await getDevicePushToken();
+      //   if (token && session.userName) {
+      //     try {
+      //       await saveFirebaseToken(session.userName, token);
+      //     } catch {
+      //       // ignore failures
+      //     }
+      //   }
+      // } catch {
+      //   // ignore push registration failures
+      // }
+
       setPassword('');
       setPasswordTouched(false);
       router.replace('/feladatok');

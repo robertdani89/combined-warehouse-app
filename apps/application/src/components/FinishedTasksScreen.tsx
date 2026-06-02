@@ -92,9 +92,9 @@ export default function FinishedTasksScreen({ session }: FinishedTasksScreenProp
       {!isLoading && !loadError && tasks.length > 0 ? (
         <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
           {tasks.map((task) => (
-            <View key={task._id} style={styles.disabledItem}>
+            <Pressable key={task._id} onPress={() => router.push(`/feladat/${task._id}`)}>
               <TaskListItem task={task} />
-            </View>
+            </Pressable>
           ))}
         </ScrollView>
       ) : null}
@@ -147,9 +147,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 8,
-  },
-  disabledItem: {
-    opacity: 0.7,
   },
   secondaryButton: {
     backgroundColor: '#E5E7EB',

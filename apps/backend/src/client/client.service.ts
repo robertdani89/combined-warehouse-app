@@ -3,7 +3,7 @@ import { MssqlService } from '../database/mssql.service';
 
 @Injectable()
 export class ClientService {
-  constructor(private readonly mssqlService: MssqlService) {}
+  constructor(private readonly mssqlService: MssqlService) { }
 
   async getLatestVersion(): Promise<number> {
     const sql =
@@ -22,6 +22,13 @@ export class ClientService {
     const sql =
       'UPDATE [Android_felhasznalok] SET firebase_token = @p0 WHERE felhasznalonev = @p1;';
     await this.mssqlService.execute(sql, [key, userName]);
+  }
+
+  async getPushTokens(userName: string): Promise<{ firebase_token?: string | null; gcm_regid?: string | null } | null> {
+    const sql = 'SELECT firebase_token, gcm_regid FROM [Android_felhasznalok] WHERE felhasznalonev = @p0;';
+    const rows = await this.mssqlService.query<{ firebase_token?: string; gcm_regid?: string }>(sql, [userName]);
+    if (!rows || rows.length === 0) return null;
+    return { firebase_token: rows[0].firebase_token ?? null, gcm_regid: rows[0].gcm_regid ?? null };
   }
 
   async hasVegezIdo(userName: string): Promise<boolean> {

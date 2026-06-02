@@ -30,6 +30,7 @@ type ApiContextValue = {
   postUzenet: (taskId: number, userName: string, message: string) => Promise<boolean>;
   hasVegezIdo: (userName: string) => Promise<boolean>;
   saveVegzes: (userName: string, idoString: string) => Promise<boolean>;
+  saveFirebaseToken: (userName: string, key: string) => Promise<boolean>;
 };
 
 const ApiContext = createContext<ApiContextValue | undefined>(undefined);
@@ -349,6 +350,20 @@ export function ApiProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const saveFirebaseToken = useCallback(
+    async (userName: string, key: string): Promise<boolean> => {
+      const result = await requestJson<{ success: boolean }>(
+        '/client/firebase-token',
+        {
+          method: 'POST',
+          body: JSON.stringify({ userName, key }),
+        },
+      );
+      return result.success;
+    },
+    [],
+  );
+
   const value = useMemo<ApiContextValue>(
     () => ({
       backendUrl,
@@ -362,6 +377,7 @@ export function ApiProvider({ children }: { children: ReactNode }) {
       postUzenet,
       hasVegezIdo,
       saveVegzes,
+      saveFirebaseToken,
     }),
     [backendUrl, getTasks, getTaskItems, reportTasks, reportItem, getRoute, getUzenetek, postUzenet, login, hasVegezIdo, saveVegzes],
   );

@@ -273,7 +273,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           initialProgress={initialProgress}
           onSaveProgress={handleSaveProgress}
           onFinishTask={handleFinishTask}
-          onCancel={() => router.push('/feladatok')}
+          onCancel={() => router.back()}
           onChat={() => router.push(`/feladat/${taskId}/chat`)}
         />
       );
@@ -286,7 +286,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           initialProgress={initialProgress}
           onSaveProgress={handleSaveProgress}
           onFinishTask={handleFinishTask}
-          onCancel={() => router.push('/feladatok')}
+          onCancel={() => router.back()}
           onChat={() => router.push(`/feladat/${taskId}/chat`)}
         />
       );
@@ -298,7 +298,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           initialProgress={initialProgress}
           onSaveProgress={handleSaveProgress}
           onFinishTask={handleFinishTask}
-          onCancel={() => router.push('/feladatok')}
+          onCancel={() => router.back()}
           onChat={() => router.push(`/feladat/${taskId}/chat`)}
         />
       );
@@ -311,7 +311,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           initialProgress={initialProgress}
           onSaveProgress={handleSaveProgress}
           onFinishTask={handleFinishTask}
-          onCancel={() => router.push('/feladatok')}
+          onCancel={() => router.back()}
           onChat={() => router.push(`/feladat/${taskId}/chat`)}
         />
       );
@@ -323,7 +323,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           initialProgress={initialProgress}
           onSaveProgress={handleSaveProgress}
           onFinishTask={handleFinishTask}
-          onCancel={() => router.push('/feladatok')}
+          onCancel={() => router.back()}
           onChat={() => router.push(`/feladat/${taskId}/chat`)}
         />
       );
