@@ -76,7 +76,7 @@ export default function FinishedTasksScreen({ session }: FinishedTasksScreenProp
           <Pressable style={[styles.secondaryButton, dynamicStyles.secondaryButton]} onPress={loadTasks}>
             <Text style={[styles.secondaryButtonText, dynamicStyles.secondaryButtonText]}>Frissítés</Text>
           </Pressable>
-          <Pressable style={[styles.backButton, dynamicStyles.backButton]} onPress={() => router.push('/feladatok')}>
+          <Pressable style={[styles.backButton, dynamicStyles.backButton]} onPress={() => router.back()}>
             <Text style={[styles.backButtonText, dynamicStyles.backButtonText]}>Vissza</Text>
           </Pressable>
         </View>

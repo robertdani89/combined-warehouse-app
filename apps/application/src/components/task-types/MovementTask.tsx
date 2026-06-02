@@ -460,7 +460,7 @@ export default function MovementTask({
             </View>
 
             <TouchableOpacity
-              style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn, { marginTop: 12, minHeight: 40 }]}
+              style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn, { marginTop: 12, flex: 0, height: 44 }]}
               onPress={() => setSortModalVisible(false)}
             >
               <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Mégse</Text>

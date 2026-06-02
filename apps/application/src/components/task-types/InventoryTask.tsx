@@ -34,7 +34,7 @@ export default function InventoryTask({
 
   const SORT_OPTIONS = [
     "Polc sorrend",
-    "Cikknév sorrend"
+    "Cikknév sorrend",
   ];
 
   // Overridden items state (id -> override info)
@@ -486,7 +486,7 @@ export default function InventoryTask({
                       ['7', '8', '9', '÷'],
                       ['4', '5', '6', '×'],
                       ['1', '2', '3', '-'],
-                      ['0', '.', '=', '+'],
+                      ['0', '.', '', '+'],
                       ['(', ')', '⌫', 'CE'],
                     ].map((row, rIdx) => (
                       <View key={rIdx} style={styles.calcRow}>
@@ -635,7 +635,7 @@ export default function InventoryTask({
             </View>
 
             <TouchableOpacity
-              style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn, { marginTop: 12, minHeight: 40 }]}
+              style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn, { marginTop: 12, flex: 0, height: 44 }]}
               onPress={() => setSortModalVisible(false)}
             >
               <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Mégse</Text>

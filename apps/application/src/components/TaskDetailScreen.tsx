@@ -331,7 +331,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
       return (
         <View style={styles.centerContainer}>
           <Text style={styles.errorText}>Ismeretlen feladattípus: {task.fel_tipus}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => router.push('/feladatok')}>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => router.back()}>
             <Text style={styles.retryBtnTxt}>Vissza a feladatokhoz</Text>
           </TouchableOpacity>
         </View>
