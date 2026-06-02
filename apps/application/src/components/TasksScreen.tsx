@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, Alert } from 'react-native';
-import { useNavigate } from 'react-router';
+import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApi } from '../context/api';
 import { LoginSession } from '../types/auth';
@@ -28,7 +28,7 @@ function getCurrentTimeString(): string {
 export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
   const { colors } = useAppTheme();
   const { getTasks, getTaskItems, reportTasks, hasVegezIdo } = useApi();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -139,13 +139,13 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
           onPress: async () => {
             setShowLeaveTimePicker(false);
             await onLogout();
-            navigate('/', { replace: true });
+            router.replace('/');
           },
         },
       ],
       { cancelable: true }
     );
-  }, [onLogout, navigate]);
+  }, [onLogout]);
 
   useEffect(() => {
     let isActive = true;
@@ -228,7 +228,7 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
           <Pressable style={[styles.secondaryButton, dynamicStyles.secondaryButton]} onPress={loadTasks}>
             <Text style={[styles.secondaryButtonText, dynamicStyles.secondaryButtonText]}>Frissítés</Text>
           </Pressable>
-          <Pressable style={[styles.secondaryButton, dynamicStyles.secondaryButton]} onPress={() => navigate('/lezart-feladatok')}>
+          <Pressable style={[styles.secondaryButton, dynamicStyles.secondaryButton]} onPress={() => router.push('/lezart-feladatok')}>
             <Text style={[styles.secondaryButtonText, dynamicStyles.secondaryButtonText]}>
               Lezárt{finishedCount > 0 ? ` (${finishedCount})` : ''}
             </Text>
@@ -249,7 +249,7 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
       {!isLoading && !loadError && activeTasks.length > 0 ? (
         <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
           {activeTasks.map((task) => (
-            <Pressable key={task._id} onPress={() => navigate(`/feladat/${task._id}`)}>
+            <Pressable key={task._id} onPress={() => router.push(`/feladat/${task._id}`)}>
               <TaskListItem task={task} />
             </Pressable>
           ))}

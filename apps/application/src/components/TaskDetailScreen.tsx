@@ -7,7 +7,7 @@ import {
   Alert,
   TouchableOpacity,
 } from 'react-native';
-import { useParams, useNavigate } from 'react-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useApi } from '../context/api';
 import { TaskRecord, TaskItem, ReportTask, ReportItem } from '../types/task';
 import { LoginSession } from '../types/auth';
@@ -37,8 +37,8 @@ function getCurrentTimeString(): string {
 
 export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
   const { colors } = useAppTheme();
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const { getTasks, getTaskItems, reportTasks, reportItem } = useApi();
 
   const [task, setTask] = useState<TaskRecord | null>(null);
@@ -167,7 +167,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           );
           if (allapotCode === 4) {
             AsyncStorage.removeItem(`task_progress_${taskId}`).catch(() => { });
-            navigate('/feladatok');
+            router.push('/feladatok');
           } else {
             // Refresh local view
             await fetchTaskAndItems();
@@ -181,7 +181,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
         setLoading(false);
       }
     },
-    [task, items, reportTasks, navigate, fetchTaskAndItems]
+    [task, items, reportTasks, router, fetchTaskAndItems]
   );
 
   const handleSaveProgress = useCallback(
@@ -273,8 +273,8 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           initialProgress={initialProgress}
           onSaveProgress={handleSaveProgress}
           onFinishTask={handleFinishTask}
-          onCancel={() => navigate('/feladatok')}
-          onChat={() => navigate(`/feladat/${taskId}/chat`)}
+          onCancel={() => router.push('/feladatok')}
+          onChat={() => router.push(`/feladat/${taskId}/chat`)}
         />
       );
     case 2:
@@ -286,8 +286,8 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           initialProgress={initialProgress}
           onSaveProgress={handleSaveProgress}
           onFinishTask={handleFinishTask}
-          onCancel={() => navigate('/feladatok')}
-          onChat={() => navigate(`/feladat/${taskId}/chat`)}
+          onCancel={() => router.push('/feladatok')}
+          onChat={() => router.push(`/feladat/${taskId}/chat`)}
         />
       );
     case 3:
@@ -298,8 +298,8 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           initialProgress={initialProgress}
           onSaveProgress={handleSaveProgress}
           onFinishTask={handleFinishTask}
-          onCancel={() => navigate('/feladatok')}
-          onChat={() => navigate(`/feladat/${taskId}/chat`)}
+          onCancel={() => router.push('/feladatok')}
+          onChat={() => router.push(`/feladat/${taskId}/chat`)}
         />
       );
     case 6:
@@ -311,8 +311,8 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           initialProgress={initialProgress}
           onSaveProgress={handleSaveProgress}
           onFinishTask={handleFinishTask}
-          onCancel={() => navigate('/feladatok')}
-          onChat={() => navigate(`/feladat/${taskId}/chat`)}
+          onCancel={() => router.push('/feladatok')}
+          onChat={() => router.push(`/feladat/${taskId}/chat`)}
         />
       );
     case 9:
@@ -323,15 +323,15 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           initialProgress={initialProgress}
           onSaveProgress={handleSaveProgress}
           onFinishTask={handleFinishTask}
-          onCancel={() => navigate('/feladatok')}
-          onChat={() => navigate(`/feladat/${taskId}/chat`)}
+          onCancel={() => router.push('/feladatok')}
+          onChat={() => router.push(`/feladat/${taskId}/chat`)}
         />
       );
     default:
       return (
         <View style={styles.centerContainer}>
           <Text style={styles.errorText}>Ismeretlen feladattípus: {task.fel_tipus}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => navigate('/feladatok')}>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => router.push('/feladatok')}>
             <Text style={styles.retryBtnTxt}>Vissza a feladatokhoz</Text>
           </TouchableOpacity>
         </View>

@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useParams, useNavigate } from 'react-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useApi } from '../context/api';
 import { TaskMessage } from '../types/task';
 import { LoginSession } from '../types/auth';
@@ -21,8 +21,8 @@ interface ChatScreenProps {
 }
 
 export default function ChatScreen({ session }: ChatScreenProps) {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const { getUzenetek, postUzenet } = useApi();
   const { colors } = useAppTheme();
 
@@ -128,7 +128,7 @@ export default function ChatScreen({ session }: ChatScreenProps) {
     >
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.cardBackground, borderBottomColor: colors.border }]}>
-        <TouchableOpacity style={[styles.backButton, { backgroundColor: colors.secondary }]} onPress={() => navigate(`/feladat/${taskId}`)}>
+        <TouchableOpacity style={[styles.backButton, { backgroundColor: colors.secondary }]} onPress={() => router.push(`/feladat/${taskId}`)}>
           <Text style={styles.backButtonText}>← Vissza</Text>
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.textMain }]}>Üzenetek #{taskId}</Text>

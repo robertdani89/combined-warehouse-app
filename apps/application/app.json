@@ -2,7 +2,9 @@
   "expo": {
     "name": "Villumen Raktar",
     "slug": "villumen-raktar",
+    "scheme": "villumenraktar",
     "version": "1.0.0",
+    "plugins": ["expo-router"],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

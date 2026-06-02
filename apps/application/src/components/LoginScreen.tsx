@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useNavigate } from 'react-router';
+import { useRouter } from 'expo-router';
 import { useApi } from '../context/api';
 import { LoginSession } from '../types/auth';
 import { useAppTheme } from '../theme/theme';
@@ -23,7 +23,7 @@ type LoginScreenProps = {
 export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScreenProps) {
   const { colors } = useAppTheme();
   const { login } = useApi();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const passwordRef = useRef<TextInput>(null);
 
@@ -72,7 +72,7 @@ export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScr
       await onLoginSuccess(session);
       setPassword('');
       setPasswordTouched(false);
-      navigate('/feladatok', { replace: true });
+      router.replace('/feladatok');
     } catch {
       setLoginError('Sikertelen bejelentkezés. Ellenőrizd a felhasználónevet és jelszót.');
     } finally {
@@ -80,7 +80,7 @@ export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScr
     }
   }, [
     login,
-    navigate,
+    router,
     onLoginSuccess,
     onResetAllData,
     trimmedPass,
@@ -217,7 +217,8 @@ export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScr
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 64,
     paddingHorizontal: 24,
     gap: 20,
   },

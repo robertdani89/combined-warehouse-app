@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useNavigate } from 'react-router';
+import { useRouter } from 'expo-router';
 import { useApi } from '../context/api';
 import { LoginSession } from '../types/auth';
 import { TaskRecord } from '../types/task';
@@ -14,7 +14,7 @@ type FinishedTasksScreenProps = {
 export default function FinishedTasksScreen({ session }: FinishedTasksScreenProps) {
   const { colors } = useAppTheme();
   const { getTasks } = useApi();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,7 +76,7 @@ export default function FinishedTasksScreen({ session }: FinishedTasksScreenProp
           <Pressable style={[styles.secondaryButton, dynamicStyles.secondaryButton]} onPress={loadTasks}>
             <Text style={[styles.secondaryButtonText, dynamicStyles.secondaryButtonText]}>Frissítés</Text>
           </Pressable>
-          <Pressable style={[styles.backButton, dynamicStyles.backButton]} onPress={() => navigate('/feladatok')}>
+          <Pressable style={[styles.backButton, dynamicStyles.backButton]} onPress={() => router.push('/feladatok')}>
             <Text style={[styles.backButtonText, dynamicStyles.backButtonText]}>Vissza</Text>
           </Pressable>
         </View>

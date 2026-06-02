@@ -1,16 +1,20 @@
-import { StatusBar } from 'expo-status-bar';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text } from 'react-native';
-import { Navigate, Route, Routes } from 'react-router';
-import LoginScreen from './src/components/LoginScreen';
-import TasksScreen from './src/components/TasksScreen';
-import TaskDetailScreen from './src/components/TaskDetailScreen';
-import ChatScreen from './src/components/ChatScreen';
-import FinishedTasksScreen from './src/components/FinishedTasksScreen';
-import { ApiProvider } from './src/context/api';
-import RootRouter from './src/router/RootRouter';
-import { LoginSession } from './src/types/auth';
+// This file is no longer the app entry point.
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Route } from "expo-router/build/Route";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { SafeAreaView, ActivityIndicator, StatusBar } from "react-native";
+import ChatScreen from "./src/components/ChatScreen";
+import FinishedTasksScreen from "./src/components/FinishedTasksScreen";
+import LoginScreen from "./src/components/LoginScreen";
+import TaskDetailScreen from "./src/components/TaskDetailScreen";
+import TasksScreen from "./src/components/TasksScreen";
+import { ApiProvider } from "./src/context/api";
+import { LoginSession } from "./src/types/auth";
+
+// expo-router/entry (app/_layout.tsx) is now the entry point.
+export { };
+
 
 const LOGIN_SESSION_KEY = '@villumen_login_session';
 
