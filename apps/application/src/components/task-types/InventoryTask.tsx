@@ -45,8 +45,6 @@ export default function InventoryTask({
   // Calculator State
   const [formula, setFormula] = useState('');
   const [calculatedRes, setCalculatedRes] = useState('0');
-  const [calcBin, setCalcBin] = useState('');
-  const [calcComment, setCalcComment] = useState('');
 
   // Weight State
   const [sampleQuantity, setSampleQuantity] = useState('1');
@@ -229,8 +227,6 @@ export default function InventoryTask({
       megjegyzes: item.megj || '',
     };
 
-    setCalcBin(item.Tarolo || '');
-    setCalcComment(existing.megjegyzes || '');
     setFormula('');
     setCalculatedRes('0');
 
@@ -333,7 +329,6 @@ export default function InventoryTask({
       [selectedItem._id]: {
         allapot: finalAllapot,
         mennyiseg: finalQty,
-        megjegyzes: calcMode === 'calc' ? calcComment : 'Súlyra leltározva',
       },
     };
 
@@ -514,24 +509,6 @@ export default function InventoryTask({
                       </View>
                     ))}
                   </View>
-
-                  <Text style={[styles.inputLabel, dynamicStyles.inputLabel]}>Tárolóhely módosítása:</Text>
-                  <TextInput
-                    style={[styles.textInput, dynamicStyles.textInput]}
-                    value={calcBin}
-                    onChangeText={setCalcBin}
-                    placeholder="Tároló"
-                    placeholderTextColor={colors.textSecondary}
-                  />
-
-                  <Text style={[styles.inputLabel, dynamicStyles.inputLabel]}>Megjegyzés:</Text>
-                  <TextInput
-                    style={[styles.textInput, dynamicStyles.textInput]}
-                    value={calcComment}
-                    onChangeText={setCalcComment}
-                    placeholder="Megjegyzés az eltéréshez..."
-                    placeholderTextColor={colors.textSecondary}
-                  />
                 </View>
               ) : (
                 <View style={styles.weightContainer}>
