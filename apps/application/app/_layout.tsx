@@ -14,7 +14,7 @@ function AuthGuardedLayout() {
   useEffect(() => {
     if (isBooting) return;
 
-    const isOnLoginPage = segments.length === 0;
+    const isOnLoginPage = (segments as string[]).length === 0;
 
     if (!session && !isOnLoginPage) {
       router.replace('/');

@@ -5,14 +5,25 @@ export async function getDevicePushToken(): Promise<string | null> {
   try {
     if (!Device.isDevice) return null;
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+    const existing = await Notifications.getPermissionsAsync();
+    let finalGranted = false;
+
+    if ('status' in existing) {
+      finalGranted = existing.status === 'granted';
+    } else if ('granted' in existing) {
+      finalGranted = Boolean((existing as any).granted);
     }
 
-    if (finalStatus !== 'granted') return null;
+    if (!finalGranted) {
+      const requested = await Notifications.requestPermissionsAsync();
+      if ('status' in requested) {
+        finalGranted = requested.status === 'granted';
+      } else if ('granted' in requested) {
+        finalGranted = Boolean((requested as any).granted);
+      }
+    }
+
+    if (!finalGranted) return null;
 
     // Try to get the native device token (FCM on Android) first
     try {

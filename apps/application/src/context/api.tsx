@@ -31,6 +31,7 @@ type ApiContextValue = {
   hasVegezIdo: (userName: string) => Promise<boolean>;
   saveVegzes: (userName: string, idoString: string) => Promise<boolean>;
   saveFirebaseToken: (userName: string, key: string) => Promise<boolean>;
+  searchInventory: (leiras: string, id?: number) => Promise<any[]>;
 };
 
 const ApiContext = createContext<ApiContextValue | undefined>(undefined);
@@ -364,6 +365,18 @@ export function ApiProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const searchInventory = useCallback(
+    async (leiras: string, id?: number): Promise<any[]> => {
+      const q = `?feladatId=${encodeURIComponent(String(id ?? -1))}&leiras=${encodeURIComponent(leiras)}`;
+      const result = await requestJson<any[]>(
+        `/search${q}`,
+      );
+
+      return result;
+    },
+    [],
+  );
+
   const value = useMemo<ApiContextValue>(
     () => ({
       backendUrl,
@@ -378,6 +391,7 @@ export function ApiProvider({ children }: { children: ReactNode }) {
       hasVegezIdo,
       saveVegzes,
       saveFirebaseToken,
+      searchInventory,
     }),
     [backendUrl, getTasks, getTaskItems, reportTasks, reportItem, getRoute, getUzenetek, postUzenet, login, hasVegezIdo, saveVegzes],
   );

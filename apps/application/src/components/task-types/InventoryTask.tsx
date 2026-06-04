@@ -12,6 +12,7 @@ import {
 import { TaskRunnerProps } from './TaskRunnerProps';
 import { TaskItem } from '../../types/task';
 import { useAppTheme } from '../../theme/theme';
+import InventorySearch from '../InventorySearch';
 
 type CalculationMode = 'calc' | 'weight';
 
@@ -31,6 +32,8 @@ export default function InventoryTask({
 
   const [sortOption, setSortOption] = useState<number>(0);
   const [sortModalVisible, setSortModalVisible] = useState(false);
+  const [searchModalVisible, setSearchModalVisible] = useState(false);
+  const [addedItems, setAddedItems] = useState<TaskItem[]>([]);
 
   const SORT_OPTIONS = [
     "Polc sorrend",
@@ -201,7 +204,8 @@ export default function InventoryTask({
 
   // Sort items based on active sorting choice
   const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => {
+    const all = [...items, ...addedItems];
+    return all.sort((a, b) => {
       const tA = a.Tarolo || '';
       const tB = b.Tarolo || '';
 
@@ -217,7 +221,7 @@ export default function InventoryTask({
         return cA.localeCompare(cB);
       }
     });
-  }, [items, sortOption]);
+  }, [items, sortOption, addedItems]);
 
   const triggerOpenItem = (item: TaskItem) => {
     setSelectedItem(item);
@@ -435,12 +439,47 @@ export default function InventoryTask({
           <Text style={styles.cancelBtnText}>Vissza</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity style={[styles.btn, styles.chatBtn, dynamicStyles.chatBtn]} onPress={() => setSearchModalVisible(true)}>
+          <Text style={[styles.saveBtnText, dynamicStyles.modalAddTxt]}>Talált</Text>
+        </TouchableOpacity>
+
         {onChat ? (
           <TouchableOpacity style={[styles.btn, styles.chatBtn, dynamicStyles.chatBtn]} onPress={onChat}>
             <Text style={styles.chatBtnText}>Csevegés 💬</Text>
           </TouchableOpacity>
         ) : null}
       </View>
+
+      <Modal visible={searchModalVisible} transparent animationType="slide" onRequestClose={() => setSearchModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, dynamicStyles.modalContent]}>
+            <InventorySearch
+              feladatID={task._id}
+              onSelect={(sel) => {
+                const tmpId = -Date.now();
+                const newItem: TaskItem = {
+                  _id: tmpId as any,
+                  Cikknev: sel.nev,
+                  Etk: sel.etk,
+                  Mero: sel.mero,
+                  Tarolo: sel.tarolo,
+                  Mennyiseg: 0,
+                  tkeszlet: 0,
+                  allapot: 0,
+                } as unknown as TaskItem;
+
+                setAddedItems((s) => [newItem, ...s]);
+                setSearchModalVisible(false);
+                setTimeout(() => triggerOpenItem(newItem), 200);
+              }}
+            />
+
+            <TouchableOpacity style={[styles.modalColumBtn, styles.modalCloseBtn, { marginTop: 12, height: 48 }]} onPress={() => setSearchModalVisible(false)}>
+              <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Bezár</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Leltár Counting Dialog */}
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
@@ -742,9 +781,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
-  saveBtn: {
-    backgroundColor: '#F59E0B',
-  },
   saveBtnText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
@@ -908,6 +944,12 @@ const styles = StyleSheet.create({
   },
   modalBtn: {
     flex: 1,
+    height: 44,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalColumBtn: {
     height: 44,
     borderRadius: 6,
     alignItems: 'center',
