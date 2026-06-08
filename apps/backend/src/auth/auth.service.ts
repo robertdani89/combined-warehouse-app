@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
+import jwt from 'jsonwebtoken';
 import { MssqlService } from '../database/mssql.service';
 
 export interface TokenInfo {
@@ -10,7 +11,11 @@ export interface TokenInfo {
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly mssqlService: MssqlService) {}
+  private readonly jwtSecret: string;
+
+  constructor(private readonly mssqlService: MssqlService) {
+    this.jwtSecret = process.env.JWT_SECRET || 'please_change_this_secret';
+  }
 
   async login(user: string, pass: string): Promise<boolean> {
     const sql = `
@@ -40,24 +45,17 @@ export class AuthService {
 
   async createToken(userName: string): Promise<TokenInfo> {
     const expiresEpoch = this.getTomorrow2AmEpoch();
-    const expires = new Date(expiresEpoch * 1000).toISOString().slice(0, 19).replace('T', ' ');
+    const expiresInSeconds = expiresEpoch - Math.floor(Date.now() / 1000);
 
-    const insertSql =
-      'INSERT INTO [dbo].[tokens]([user],[token],[expires],[key]) VALUES (@p0, @p1, @p2, @p3);';
-
-    for (let tries = 0; tries < 100; tries += 1) {
-      const newToken = this.randomHex(16);
-      const newKey = this.randomHex(8);
-
-      try {
-        await this.mssqlService.execute(insertSql, [userName, newToken, expires, newKey]);
-        return { new_token: newToken, new_key: newKey, expires: expiresEpoch };
-      } catch {
-        // Retry token generation on collision or transient insert failures.
-      }
+    const userInfo = await this.getUserInfo(userName);
+    if (!userInfo.szemelykod) {
+      throw new Error('User not found');
     }
 
-    throw new Error('Unable to create token after 100 tries');
+    const token = jwt.sign({ user: userName, szemelykod: userInfo.szemelykod, nickName: userInfo.BECENEV }, this.jwtSecret, {
+      expiresIn: expiresInSeconds,
+    });
+    return { new_token: token, new_key: token, expires: expiresEpoch };
   }
 
   async getUserInfo(userName: string): Promise<{ BECENEV: string; szemelykod: string }> {
@@ -82,42 +80,29 @@ export class AuthService {
   }
 
   async validateToken(token: string): Promise<{ user: string; EXPIRED: number; key: string }> {
-    const sql = `
-      SET NOCOUNT ON;
-      DECLARE @token varchar(32) = @p0;
-      SELECT [user],
-      CASE WHEN [expires] < SYSDATETIME() THEN 1 ELSE 0 END EXPIRED,
-      [key]
-      FROM tokens
-      WHERE token = @token;
-    `;
+    if (!token) return { user: '', EXPIRED: 1, key: '' };
 
-    const result = await this.mssqlService.query<{ user: string; EXPIRED: number; key: string }>(
-      sql,
-      [token],
-    );
-
-    return result[0] ?? { user: '', EXPIRED: 1, key: '' };
+    try {
+      const decoded = jwt.verify(token, this.jwtSecret) as { user?: string };
+      return { user: decoded?.user ?? '', EXPIRED: 0, key: token };
+    } catch (err: any) {
+      if (err && err.name === 'TokenExpiredError') {
+        const decoded = jwt.decode(token) as { user?: string } | null;
+        return { user: decoded?.user ?? '', EXPIRED: 1, key: token };
+      }
+      return { user: '', EXPIRED: 1, key: '' };
+    }
   }
 
   async validateKey(key: string): Promise<boolean> {
-    if (!key) {
+    if (!key) return false;
+
+    try {
+      jwt.verify(key, this.jwtSecret);
+      return true;
+    } catch {
       return false;
     }
-    const sql = `
-      SET NOCOUNT ON;
-      DECLARE @key varchar(32) = @p0;
-      SELECT TOP 1 [user]
-      FROM tokens
-      WHERE ([key] = @key OR token = @key) AND [expires] >= SYSDATETIME();
-    `;
-
-    const result = await this.mssqlService.query<{ user: string }>(sql, [key]);
-    return result.length > 0;
-  }
-
-  private randomHex(bytes: number): string {
-    return randomBytes(bytes).toString('hex');
   }
 
   private getTomorrow2AmEpoch(): number {

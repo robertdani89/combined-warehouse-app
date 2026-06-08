@@ -13,9 +13,11 @@ type TokenResponse = {
   user: string;
 };
 
-type UserInfoResponse = {
-  BECENEV: string;
+type TokenPayload = {
+  user: string;
   szemelykod: string;
+  nickName: string;
+  exp: number;
 };
 
 type ApiContextValue = {
@@ -219,23 +221,35 @@ export function ApiProvider({ children }: { children: ReactNode }) {
         throw new Error('Invalid credentials');
       }
 
-      const [tokenResult, userInfo] = await Promise.all([
+      const tokenResult = await
         requestJson<TokenResponse>('/auth/token', {
           method: 'POST',
           body: JSON.stringify({ userName: user }),
-        }),
-        requestJson<UserInfoResponse>(
-          `/auth/user-info?userName=${encodeURIComponent(user)}`,
-        ),
-      ]);
+        }
+        );
+
+      const token = tokenResult.key;
+      const decoded = decodeToken(token);
 
       return {
-        uid: userInfo.szemelykod || user,
-        name: userInfo.BECENEV || user,
+        uid: decoded?.szemelykod ?? '',
+        name: decoded?.nickName ?? '',
         time: formatDate(new Date()),
         key: tokenResult.key,
         userName: user,
       };
+    },
+    [],
+  );
+
+  const decodeToken = useCallback(
+    (token: string): TokenPayload | null => {
+      try {
+        const decoded = JSON.parse(atob(token.split('.')[1])) as TokenPayload;
+        return decoded;
+      } catch {
+        return null;
+      }
     },
     [],
   );
