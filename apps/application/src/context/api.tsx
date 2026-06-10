@@ -79,7 +79,11 @@ async function pingUrl(url: string, timeoutMs = 2500): Promise<boolean> {
     const res = await fetch(`${url}/`, { signal: controller.signal });
     clearTimeout(id);
     return res.ok;
-  } catch {
+  } catch (error: any) {
+    if (!controller.signal.aborted) {
+      console.error(`Error pinging ${url}`);
+      console.error(JSON.stringify(error, null, 2) || error.message || error);
+    }
     clearTimeout(id);
     return false;
   }
@@ -97,15 +101,18 @@ async function discoverActiveUrl(): Promise<string> {
     ]);
 
     if (primaryOk) {
+      console.log(`Primary backend URL is active: ${PRIMARY_URL}`);
       return PRIMARY_URL;
     }
     if (secondaryOk) {
+      console.log(`Secondary backend URL is active: ${SECONDARY_URL}`);
       return SECONDARY_URL;
     }
   } catch {
-    // Failures fallback to PRIMARY_URL
+    console.error('Error during backend URL discovery');
   }
 
+  console.warn('Both backend URLs are unreachable, defaulting to primary URL');
   return PRIMARY_URL;
 }
 
@@ -182,13 +189,13 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     return await makeFetchAttempt<T>(activeUrl, path, init);
   } catch (error) {
-    if (error instanceof HttpError) {
-      throw error;
-    }
+    // if (error instanceof HttpError) {
+    //   throw error;
+    // }
 
     const originalError = error;
     try {
-      activeUrl = await getActiveUrl(true); // force recheck
+      activeUrl = await getActiveUrl(true);
     } catch {
       throw originalError;
     }
@@ -212,6 +219,7 @@ export function ApiProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (user: string, pass: string): Promise<LoginSession> => {
+
       const loginResult = await requestJson<LoginResponse>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ user, pass }),

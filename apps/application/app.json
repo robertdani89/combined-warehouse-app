@@ -5,7 +5,8 @@
     "scheme": "villumenraktar",
     "version": "1.0.0",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "./plugins/withNetworkSecurityConfig"
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -26,6 +27,7 @@
       }
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

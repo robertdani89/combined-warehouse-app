@@ -89,7 +89,9 @@ export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScr
       setPassword('');
       setPasswordTouched(false);
       router.replace('/feladatok');
-    } catch {
+    } catch (error: any) {
+      console.error('Login failed', error.message || error);
+      console.error('Login failed', error.stack || 'no stack');
       setLoginError('Sikertelen bejelentkezés. Ellenőrizd a felhasználónevet és jelszót.');
     } finally {
       setIsSubmitting(false);

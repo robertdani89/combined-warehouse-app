@@ -1,0 +1,48 @@
+### Create apk
+
+npm run prebuild
+
+cd android
+./gradlew assembleRelease
+
+### logs
+
+adb logcat --pid=$(adb shell pidof com.stygianlamp.villumenraktar)
+
+adb -s 192.168.0.187:43095 logcat --pid=$(adb -s 192.168.0.187:43095 shell pidof com.stygianlamp.villumenraktar)
+
+### Bundle
+
+./gradlew bundleRelease --no-daemon
+
+### Emulator
+
+emulator -list-avds
+emulator -avd DEVICE_NAME
+
+cd android/app/build/outputs/apk/release/
+adb install app-release.apk
+
+### Remote deploy
+
+Android
+Setting/developer/wireless debugging
+enable
+Pair with code
+
+adb pair 192.168.0.187:<pairing_port>
+enter code
+
+adb connect 192.168.0.187:<connecting_port>
+
+adb devices
+
+adb -s <serial> install app.apk
+
+adb disconnect 192.168.0.187:<connecting_port>
+
+### IOS
+
+eas build -p ios
+
+eas submit -p ios
