@@ -35,7 +35,8 @@ export default function ReceivingTask({
 
   const SORT_OPTIONS = [
     "Raktár / Cikk szerint",
-    "Cikk szerint"
+    "Tároló - Raktár / Cikk szerint",
+    "Cikk szerint",
   ];
 
   // Overridden items state (id -> override info)
@@ -149,6 +150,12 @@ export default function ReceivingTask({
       if (sortOption === 0) {
         // Raktár / Cikk szerint
         if (rA !== rB) { return rA.localeCompare(rB); }
+        return cA.localeCompare(cB);
+      } else if (sortOption === 1) {
+        // Tároló - Raktár / Cikk szerint
+        const fA = `${a.Tarolo || ''}-${a.Att2 || ''}`;
+        const fB = `${b.Tarolo || ''}-${b.Att2 || ''}`;
+        if (fA !== fB) { return fA.localeCompare(fB); }
         return cA.localeCompare(cB);
       } else {
         // Cikk szerint
@@ -323,15 +330,26 @@ export default function ReceivingTask({
             statusLabelText = errLabels[allapot] || 'Eltérés';
           }
 
-          // Group Header if warehouse (Att2) changed
+          // Group Header if warehouse (Att2) or Tarolo changed (depending on sort)
           const prevItem = index > 0 ? sortedItems[index - 1] : null;
-          const showHeader = sortOption === 0 && (!prevItem || prevItem.Att2 !== item.Att2);
+          let showHeader = true;
+          if (sortOption === 0) {
+            showHeader = !prevItem || prevItem.Att2 !== item.Att2;
+          }
+
+          if (sortOption === 1) {
+            const prevHeader = prevItem ? `${prevItem.Tarolo || ''}-${prevItem.Att2 || ''}` : null;
+            const currentHeader = `${item.Tarolo || ''}-${item.Att2 || ''}`;
+            showHeader = prevHeader !== currentHeader;
+          }
 
           return (
             <View>
               {showHeader && (
                 <View style={[styles.groupHeader, dynamicStyles.groupHeader]}>
-                  <Text style={[styles.groupHeaderTxt, dynamicStyles.groupHeaderTxt]}>Raktár: {item.Att2 || '-'}</Text>
+                  <Text style={[styles.groupHeaderTxt, dynamicStyles.groupHeaderTxt]}>
+                    {sortOption === 0 ? `Raktár: ${item.Att2 || '-'}` : `Tároló: ${item.Tarolo || '-'} - ${item.Att2 || '-'}`}
+                  </Text>
                 </View>
               )}
 
