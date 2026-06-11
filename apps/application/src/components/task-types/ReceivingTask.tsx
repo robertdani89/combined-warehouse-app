@@ -19,9 +19,6 @@ export default function ReceivingTask({
   items,
   initialProgress,
   onSaveProgress,
-  onFinishTask,
-  onCancel,
-  onChat,
 }: TaskRunnerProps) {
   const { colors } = useAppTheme();
   const [quickFinish, setQuickFinish] = useState(false);
@@ -45,9 +42,6 @@ export default function ReceivingTask({
   >(initialProgress ?? {});
 
   const dynamicStyles = StyleSheet.create({
-    container: {
-      backgroundColor: colors.background,
-    },
     headerBar: {
       backgroundColor: colors.cardBackground,
       borderBottomColor: colors.border,
@@ -91,12 +85,6 @@ export default function ReceivingTask({
     footerButtons: {
       backgroundColor: colors.cardBackground,
       borderTopColor: colors.border,
-    },
-    cancelBtn: {
-      backgroundColor: colors.secondary,
-    },
-    chatBtn: {
-      backgroundColor: colors.primary,
     },
     modalContent: {
       backgroundColor: colors.cardBackground,
@@ -246,17 +234,9 @@ export default function ReceivingTask({
     setSelectedItem(null);
   };
 
-  const allDone = items.every((item) => {
-    const allapot = progress[item._id] ? progress[item._id].allapot : (item.allapot ?? 0);
-    return allapot !== 0;
-  });
-
-  const submitFinish = () => {
-    onFinishTask(progress);
-  };
 
   return (
-    <View style={[styles.container, dynamicStyles.container]}>
+    <View style={styles.container}>
       {/* Header with Quick Finish */}
       <View style={[styles.headerBar, dynamicStyles.headerBar]}>
         <View style={styles.taskInfo}>
@@ -407,18 +387,6 @@ export default function ReceivingTask({
           );
         }}
       />
-
-      <View style={[styles.footerButtons, dynamicStyles.footerButtons]}>
-        <TouchableOpacity style={[styles.btn, styles.cancelBtn, dynamicStyles.cancelBtn]} onPress={onCancel}>
-          <Text style={styles.cancelBtnText}>Vissza</Text>
-        </TouchableOpacity>
-
-        {onChat ? (
-          <TouchableOpacity style={[styles.btn, styles.chatBtn, dynamicStyles.chatBtn]} onPress={onChat}>
-            <Text style={styles.chatBtnText}>Csevegés 💬</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
 
       {/* Baj Van bejelentés popup modal */}
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
@@ -731,41 +699,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  footerButtons: {
-    flexDirection: 'row',
-    padding: 12,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    gap: 8,
-  },
   btn: {
     flex: 1,
     height: 48,
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  cancelBtn: {
-    backgroundColor: '#64748B',
-  },
-  cancelBtnText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  chatBtn: {
-    backgroundColor: '#0284C7',
-  },
-  chatBtnText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  saveBtn: {
-    backgroundColor: '#F59E0B',
-  },
-  saveBtnText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   finishBtn: {
     backgroundColor: '#10B981',

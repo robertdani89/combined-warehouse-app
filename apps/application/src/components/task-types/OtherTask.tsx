@@ -18,9 +18,6 @@ export default function OtherTask({
   items,
   initialProgress,
   onSaveProgress,
-  onFinishTask,
-  onCancel,
-  onChat,
 }: TaskRunnerProps) {
   const { colors } = useAppTheme();
   const [selectedItem, setSelectedItem] = useState<TaskItem | null>(null);
@@ -33,9 +30,6 @@ export default function OtherTask({
   >(initialProgress ?? {});
 
   const dynamicStyles = StyleSheet.create({
-    container: {
-      backgroundColor: colors.background,
-    },
     taskInfoContainer: {
       backgroundColor: colors.cardBackground,
       borderBottomColor: colors.border,
@@ -53,12 +47,6 @@ export default function OtherTask({
     footerButtons: {
       backgroundColor: colors.cardBackground,
       borderTopColor: colors.border,
-    },
-    cancelBtn: {
-      backgroundColor: colors.secondary,
-    },
-    chatBtn: {
-      backgroundColor: colors.primary,
     },
     modalContent: {
       backgroundColor: colors.cardBackground,
@@ -130,15 +118,6 @@ export default function OtherTask({
     setSelectedItem(null);
   };
 
-  const allDone = items.every((item) => {
-    const allapot = progress[item._id] ? progress[item._id].allapot : (item.allapot ?? 0);
-    return allapot !== 0;
-  });
-
-  const submitFinish = () => {
-    onFinishTask(progress);
-  };
-
   const renderItem = ({ item }: { item: TaskItem }) => {
     const override = progress[item._id];
     const allapot = override ? override.allapot : (item.allapot ?? 0);
@@ -182,7 +161,7 @@ export default function OtherTask({
   };
 
   return (
-    <View style={[styles.container, dynamicStyles.container]}>
+    <View style={styles.container}>
       <View style={[styles.taskInfoContainer, dynamicStyles.taskInfoContainer]}>
         <Text style={[styles.taskTitle, dynamicStyles.taskTitle]}>
           {task.megnevezes || `Egyéb feladat #${task._id}`}
@@ -196,18 +175,6 @@ export default function OtherTask({
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
       />
-
-      <View style={[styles.footerButtons, dynamicStyles.footerButtons]}>
-        <TouchableOpacity style={[styles.btn, styles.cancelBtn, dynamicStyles.cancelBtn]} onPress={onCancel}>
-          <Text style={styles.cancelBtnText}>Vissza</Text>
-        </TouchableOpacity>
-
-        {onChat ? (
-          <TouchableOpacity style={[styles.btn, styles.chatBtn, dynamicStyles.chatBtn]} onPress={onChat}>
-            <Text style={styles.chatBtnText}>Csevegés 💬</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
 
       {/* Egyéb feladat modal */}
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
@@ -259,7 +226,6 @@ export default function OtherTask({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
   },
   taskInfoContainer: {
     padding: 16,
@@ -324,20 +290,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  cancelBtn: {
-    backgroundColor: '#64748B',
-  },
-  cancelBtnText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  chatBtn: {
-    backgroundColor: '#0284C7',
-  },
-  chatBtnText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   saveBtn: {
     backgroundColor: '#F59E0B',

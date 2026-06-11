@@ -8,6 +8,7 @@ import { TaskRecord, TaskItem, ReportItem, ReportTask } from '../types/task';
 import TaskListItem from './TaskListItem';
 import LeaveTimePickerModal from './LeaveTimePickerModal';
 import { useAppTheme } from '../theme/theme';
+import { useIsFocused } from '@react-navigation/native';
 
 type TasksScreenProps = {
   session: LoginSession;
@@ -34,6 +35,8 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showLeaveTimePicker, setShowLeaveTimePicker] = useState(false);
+
+  const isFocused = useIsFocused();
 
   const checkAndAutoReportTasks = useCallback(async () => {
     try {
@@ -128,6 +131,19 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
     }
   }, [getTasks, session.name, session.userName, checkAndAutoReportTasks, hasVegezIdo]);
 
+  // Re-fetch when screen regains focus
+  useEffect(() => {
+    const fetchData = async () => {
+      if (isFocused) {
+        setIsLoading(true);
+        await checkAndAutoReportTasks();
+        await loadTasks();
+      }
+    };
+
+    fetchData();
+  }, [isFocused, checkAndAutoReportTasks, loadTasks]);
+
   const handleLogout = useCallback(() => {
     Alert.alert(
       'Kijelentkezés',
@@ -146,47 +162,6 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
       { cancelable: true }
     );
   }, [onLogout]);
-
-  useEffect(() => {
-    let isActive = true;
-
-    void (async () => {
-      setIsLoading(true);
-      setLoadError(null);
-
-      try {
-        const hasTime = await hasVegezIdo(session.userName ?? session.name);
-        if (isActive) {
-          if (!hasTime) {
-            setShowLeaveTimePicker(true);
-          }
-        }
-
-        await checkAndAutoReportTasks();
-        const taskList = await getTasks(session.userName ?? session.name);
-        if (!isActive) {
-          return;
-        }
-
-        setTasks(taskList);
-      } catch {
-        if (!isActive) {
-          return;
-        }
-
-        setLoadError('Nem sikerült betölteni a feladatokat.');
-        setTasks([]);
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      isActive = false;
-    };
-  }, [getTasks, checkAndAutoReportTasks, session.name, session.userName, hasVegezIdo]);
 
   const activeTasks = tasks.filter((t) => (t.allapot ?? 0) < 5);
   const finishedCount = tasks.filter((t) => (t.allapot ?? 0) >= 5).length;

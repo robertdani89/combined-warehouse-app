@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -21,9 +21,7 @@ export default function InventoryTask({
   items,
   initialProgress,
   onSaveProgress,
-  onFinishTask,
-  onCancel,
-  onChat,
+  registerExtraButtons,
 }: TaskRunnerProps) {
   const { colors } = useAppTheme();
   const [selectedItem, setSelectedItem] = useState<TaskItem | null>(null);
@@ -56,9 +54,6 @@ export default function InventoryTask({
   const [additionalQuantity, setAdditionalQuantity] = useState('');
 
   const dynamicStyles = StyleSheet.create({
-    container: {
-      backgroundColor: colors.background,
-    },
     taskInfoContainer: {
       backgroundColor: colors.cardBackground,
       borderBottomColor: colors.border,
@@ -202,6 +197,19 @@ export default function InventoryTask({
     },
   });
 
+  useEffect(() => {
+    registerExtraButtons?.([
+      {
+        text: 'Talált',
+        handler: () => setSearchModalVisible(true),
+      },
+    ]);
+
+    return () => {
+      registerExtraButtons?.([]);
+    };
+  }, [registerExtraButtons, setSearchModalVisible]);
+
   // Sort items based on active sorting choice
   const sortedItems = useMemo(() => {
     const all = [...items, ...addedItems];
@@ -342,15 +350,6 @@ export default function InventoryTask({
     setSelectedItem(null);
   };
 
-  const allDone = items.every((item) => {
-    const allapot = progress[item._id] ? progress[item._id].allapot : (item.allapot ?? 0);
-    return allapot !== 0;
-  });
-
-  const submitFinish = () => {
-    onFinishTask(progress);
-  };
-
   const renderItem = ({ item }: { item: TaskItem }) => {
     const override = progress[item._id];
     const allapot = override ? override.allapot : (item.allapot ?? 0);
@@ -408,7 +407,7 @@ export default function InventoryTask({
   };
 
   return (
-    <View style={[styles.container, dynamicStyles.container]}>
+    <View style={styles.container}>
       <View style={[styles.taskInfoContainer, dynamicStyles.taskInfoContainer]}>
         <View>
           <Text style={[styles.taskTitle, dynamicStyles.taskTitle]}>
@@ -434,45 +433,28 @@ export default function InventoryTask({
         contentContainerStyle={styles.listContent}
       />
 
-      <View style={[styles.footerButtons, dynamicStyles.footerButtons]}>
-        <TouchableOpacity style={[styles.btn, styles.cancelBtn, dynamicStyles.cancelBtn]} onPress={onCancel}>
-          <Text style={styles.cancelBtnText}>Vissza</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.btn, styles.chatBtn, dynamicStyles.chatBtn]} onPress={() => setSearchModalVisible(true)}>
-          <Text style={[styles.saveBtnText, dynamicStyles.modalAddTxt]}>Talált</Text>
-        </TouchableOpacity>
-
-        {onChat ? (
-          <TouchableOpacity style={[styles.btn, styles.chatBtn, dynamicStyles.chatBtn]} onPress={onChat}>
-            <Text style={styles.chatBtnText}>Csevegés 💬</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
-
       <Modal visible={searchModalVisible} transparent animationType="slide" onRequestClose={() => setSearchModalVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, dynamicStyles.modalContent]}>
-            <InventorySearch
-              feladatID={task._id}
-              onSelect={(sel) => {
-                const tmpId = -Date.now();
-                const newItem: TaskItem = {
-                  _id: tmpId as any,
-                  Cikknev: sel.nev,
-                  Etk: sel.etk,
-                  Mero: sel.mero,
-                  Tarolo: sel.tarolo,
-                  Mennyiseg: 0,
-                  tkeszlet: 0,
-                  allapot: 0,
-                } as unknown as TaskItem;
+          <View style={[styles.modalContent, dynamicStyles.modalContent]}>            <InventorySearch
+            feladatID={task._id}
+            onSelect={(sel) => {
+              const tmpId = -Date.now();
+              const newItem: TaskItem = {
+                _id: tmpId as any,
+                Cikknev: sel.nev,
+                Etk: sel.etk,
+                Mero: sel.mero,
+                Tarolo: sel.tarolo,
+                Mennyiseg: 0,
+                tkeszlet: 0,
+                allapot: 0,
+              } as unknown as TaskItem;
 
-                setAddedItems((s) => [newItem, ...s]);
-                setSearchModalVisible(false);
-                setTimeout(() => triggerOpenItem(newItem), 200);
-              }}
-            />
+              setAddedItems((s) => [newItem, ...s]);
+              setSearchModalVisible(false);
+              setTimeout(() => triggerOpenItem(newItem), 200);
+            }}
+          />
 
             <TouchableOpacity style={[styles.modalColumBtn, styles.modalCloseBtn, { marginTop: 12, height: 48 }]} onPress={() => setSearchModalVisible(false)}>
               <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Bezár</Text>
@@ -665,8 +647,7 @@ export default function InventoryTask({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
+    flex: 1
   },
   taskInfoContainer: {
     display: 'flex',
@@ -767,34 +748,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cancelBtn: {
-    backgroundColor: '#64748B',
-  },
-  cancelBtnText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  chatBtn: {
-    backgroundColor: '#0284C7',
-  },
-  chatBtnText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  saveBtnText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  finishBtn: {
-    backgroundColor: '#10B981',
-  },
-  finishBtnDisabled: {
-    backgroundColor: '#A1A1AA',
-  },
-  finishBtnText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -803,6 +756,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalContent: {
+    flex: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     width: '100%',

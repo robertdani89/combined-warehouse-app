@@ -19,9 +19,6 @@ export default function PickingTask({
   items,
   initialProgress,
   onSaveProgress,
-  onFinishTask,
-  onCancel,
-  onChat,
 }: TaskRunnerProps) {
   const { colors } = useAppTheme();
   const [quickFinish, setQuickFinish] = useState(false);
@@ -96,12 +93,6 @@ export default function PickingTask({
     footerButtons: {
       backgroundColor: colors.cardBackground,
       borderTopColor: colors.border,
-    },
-    cancelBtn: {
-      backgroundColor: colors.secondary,
-    },
-    chatBtn: {
-      backgroundColor: colors.primary,
     },
     modalContent: {
       backgroundColor: colors.cardBackground,
@@ -261,15 +252,6 @@ export default function PickingTask({
     setSelectedItem(null);
   };
 
-  const allDone = items.every((item) => {
-    const allapot = progress[item._id] ? progress[item._id].allapot : (item.allapot ?? 0);
-    return allapot !== 0;
-  });
-
-  const submitFinish = () => {
-    onFinishTask(progress);
-  };
-
   return (
     <View style={[styles.container, dynamicStyles.container]}>
       {/* Quick Finish switch and header */}
@@ -422,18 +404,6 @@ export default function PickingTask({
           );
         }}
       />
-
-      <View style={[styles.footerButtons, dynamicStyles.footerButtons]}>
-        <TouchableOpacity style={[styles.btn, styles.cancelBtn, dynamicStyles.cancelBtn]} onPress={onCancel}>
-          <Text style={styles.cancelBtnText}>Vissza</Text>
-        </TouchableOpacity>
-
-        {onChat ? (
-          <TouchableOpacity style={[styles.btn, styles.chatBtn, dynamicStyles.chatBtn]} onPress={onChat}>
-            <Text style={styles.chatBtnText}>Csevegés 💬</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
 
       {/* Baj Van alert popup menu */}
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
@@ -617,7 +587,6 @@ export default function PickingTask({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
   },
   headerBar: {
     backgroundColor: '#FFFFFF',
@@ -793,20 +762,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  cancelBtn: {
-    backgroundColor: '#64748B',
-  },
-  cancelBtnText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  chatBtn: {
-    backgroundColor: '#0284C7',
-  },
-  chatBtnText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   saveBtn: {
     backgroundColor: '#F59E0B',

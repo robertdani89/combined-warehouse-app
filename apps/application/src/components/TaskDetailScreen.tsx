@@ -1,4 +1,6 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { Animated } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import {
   StyleSheet,
   View,
@@ -19,10 +21,13 @@ import MovementTask from './task-types/MovementTask';
 import OtherTask from './task-types/OtherTask';
 import ReceivingTask from './task-types/ReceivingTask';
 import PickingTask from './task-types/PickingTask';
+import { ExtraButton } from './task-types/TaskRunnerProps';
 
 interface TaskDetailScreenProps {
   session: LoginSession;
 }
+
+type InitialProgress = Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string }>;
 
 function getCurrentTimeString(): string {
   const now = new Date();
@@ -41,15 +46,23 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
   const router = useRouter();
   const { getTasks, getTaskItems, reportTasks, reportItem } = useApi();
 
+  const isFocused = useIsFocused();
+
   const [task, setTask] = useState<TaskRecord | null>(null);
   const [items, setItems] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [initialProgress, setInitialProgress] = useState<Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string }>>({});
+  const [initialProgress, setInitialProgress] = useState<InitialProgress>({});
+  const [extraButtons, setExtraButtons] = useState<ExtraButton[]>([]);
 
   const taskId = useMemo(() => (id ? parseInt(id, 10) : NaN), [id]);
 
+  const blinkAnim = useRef(new Animated.Value(1)).current;
+
   const dynamicStyles = StyleSheet.create({
+    container: {
+      backgroundColor: colors.background,
+    },
     centerContainer: {
       backgroundColor: colors.background,
     },
@@ -64,6 +77,16 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
     },
     retryBtnTxt: {
       color: colors.textOnPrimary,
+    },
+    cancelBtn: {
+      backgroundColor: colors.secondary,
+    },
+    chatBtn: {
+      backgroundColor: colors.primary,
+    },
+    footerButtons: {
+      backgroundColor: colors.cardBackground,
+      borderTopColor: colors.border,
     },
   });
 
@@ -114,75 +137,33 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
     fetchTaskAndItems();
   }, [fetchTaskAndItems]);
 
-  const handleReport = useCallback(
-    async (
-      updatedItems: Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string }>,
-      allapotCode: number
-    ) => {
-      if (!task) { return; }
+  // Re-fetch when screen regains focus (e.g., after returning from Chat)
+  useEffect(() => {
+    if (isFocused) {
+      fetchTaskAndItems();
+    }
+  }, [isFocused, fetchTaskAndItems]);
 
-      try {
-        setLoading(true);
+  // Blink animation for unread messages (chat button)
+  useEffect(() => {
+    let anim: Animated.CompositeAnimation | null = null;
+    if (task?.hasUnread) {
+      anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(blinkAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+          Animated.timing(blinkAnim, { toValue: 0.3, duration: 600, useNativeDriver: true }),
+        ]),
+      );
+      anim.start();
+    } else {
+      blinkAnim.setValue(1);
+    }
 
-        const buildEntries = Object.entries(updatedItems);
-        if (buildEntries.length === 0) {
-          Alert.alert('Értesítés', 'Nincs mit lejelenteni, minden elem változatlan.');
-          setLoading(false);
-          return;
-        }
-
-        const reportItems: ReportItem[] = buildEntries.map(([itemIdStr, info]) => {
-          const itemId = parseInt(itemIdStr, 10);
-          const orig = items.find((i) => i._id === itemId);
-
-          return {
-            _id: itemId,
-            tetel_id: itemId,
-            tetel_etk: orig?.Etk || '',
-            tetel_tarolohely: orig?.Tarolo || '',
-            naplo: [
-              {
-                naplo_allapot: info.allapot,
-                naplo_mennyiseg: info.mennyiseg,
-                naplo_megjegyzes: info.megjegyzes || '',
-                naplo_ido: getCurrentTimeString(),
-              },
-            ],
-          };
-        });
-
-        const reportPayload: ReportTask = {
-          id: task._id,
-          allapot: allapotCode,
-          elkezdte: task.elkezdte || getCurrentTimeString(),
-          befejezte: allapotCode === 4 ? getCurrentTimeString() : task.befejezte,
-          items: reportItems,
-        };
-
-        const success = await reportTasks([reportPayload]);
-        if (success) {
-          Alert.alert(
-            'Sikeres művelet',
-            allapotCode === 4 ? 'A feladat lejelentése sikeresen megtörtént!' : 'A részeredmények sikeresen elmentve.'
-          );
-          if (allapotCode === 4) {
-            AsyncStorage.removeItem(`task_progress_${taskId}`).catch(() => { });
-            router.push('/feladatok');
-          } else {
-            // Refresh local view
-            await fetchTaskAndItems();
-          }
-        } else {
-          Alert.alert('Hiba', 'A lejelentés nem sikerült a szerveren.');
-        }
-      } catch (err: any) {
-        Alert.alert('Hiba', err?.message || 'Hiba lépett fel a lejelentés során.');
-      } finally {
-        setLoading(false);
-      }
-    },
-    [task, items, reportTasks, router, fetchTaskAndItems]
-  );
+    return () => {
+      if (anim) { anim.stop(); }
+      blinkAnim.setValue(1);
+    };
+  }, [task?.hasUnread, blinkAnim]);
 
   const handleSaveProgress = useCallback(
     async (
@@ -221,16 +202,6 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
     [task, taskId, items, reportItem]
   );
 
-  const handleFinishTask = useCallback(
-    async (
-      updatedItems: Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string }>
-    ) => {
-      // Complete task (state: finished = 4)
-      await handleReport(updatedItems, 4);
-    },
-    [handleReport]
-  );
-
   if (loading && !task) {
     return (
       <View style={[styles.centerContainer, dynamicStyles.centerContainer]}>
@@ -259,87 +230,114 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
     );
   }
 
-  const typeInt = parseInt(task.fel_tipus || '0', 10);
-
-  // Map to the correct task UI layout component
-  switch (typeInt) {
-    case 0:
-    case 1:
-    case 4:
-      return (
-        <InventoryTask
-          task={task}
-          items={items}
-          initialProgress={initialProgress}
-          onSaveProgress={handleSaveProgress}
-          onFinishTask={handleFinishTask}
-          onCancel={() => router.back()}
-          onChat={() => router.push(`/feladat/${taskId}/chat`)}
-        />
-      );
-    case 2:
-    case 5:
-      return (
-        <MovementTask
-          task={task}
-          items={items}
-          initialProgress={initialProgress}
-          onSaveProgress={handleSaveProgress}
-          onFinishTask={handleFinishTask}
-          onCancel={() => router.back()}
-          onChat={() => router.push(`/feladat/${taskId}/chat`)}
-        />
-      );
-    case 3:
-      return (
-        <OtherTask
-          task={task}
-          items={items}
-          initialProgress={initialProgress}
-          onSaveProgress={handleSaveProgress}
-          onFinishTask={handleFinishTask}
-          onCancel={() => router.back()}
-          onChat={() => router.push(`/feladat/${taskId}/chat`)}
-        />
-      );
-    case 6:
-    case 7:
-      return (
-        <PickingTask
-          task={task}
-          items={items}
-          initialProgress={initialProgress}
-          onSaveProgress={handleSaveProgress}
-          onFinishTask={handleFinishTask}
-          onCancel={() => router.back()}
-          onChat={() => router.push(`/feladat/${taskId}/chat`)}
-        />
-      );
-    case 9:
-      return (
-        <ReceivingTask
-          task={task}
-          items={items}
-          initialProgress={initialProgress}
-          onSaveProgress={handleSaveProgress}
-          onFinishTask={handleFinishTask}
-          onCancel={() => router.back()}
-          onChat={() => router.push(`/feladat/${taskId}/chat`)}
-        />
-      );
-    default:
-      return (
-        <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>Ismeretlen feladattípus: {task.fel_tipus}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => router.back()}>
-            <Text style={styles.retryBtnTxt}>Vissza a feladatokhoz</Text>
-          </TouchableOpacity>
-        </View>
-      );
+  const handleOnCancel = () => {
+    router.back();
   }
+
+  const handleOnChat = () => {
+    router.push(`/feladat/${task._id}/chat`)
+  }
+
+  const mapTaskType = (): React.ReactNode => {
+    const typeInt = parseInt(task.fel_tipus || '0', 10);
+
+    switch (typeInt) {
+      case 0:
+      case 1:
+      case 4:
+        return (
+          <InventoryTask
+            task={task}
+            items={items}
+            initialProgress={initialProgress}
+            onSaveProgress={handleSaveProgress}
+            registerExtraButtons={setExtraButtons}
+          />
+        );
+      case 2:
+      case 5:
+        return (
+          <MovementTask
+            task={task}
+            items={items}
+            initialProgress={initialProgress}
+            onSaveProgress={handleSaveProgress}
+          />
+        );
+      case 3:
+        return (
+          <OtherTask
+            task={task}
+            items={items}
+            initialProgress={initialProgress}
+            onSaveProgress={handleSaveProgress}
+          />
+        );
+      case 6:
+      case 7:
+        return (
+          <PickingTask
+            task={task}
+            items={items}
+            initialProgress={initialProgress}
+            onSaveProgress={handleSaveProgress}
+          />
+        );
+      case 9:
+        return (
+          <ReceivingTask
+            task={task}
+            items={items}
+            initialProgress={initialProgress}
+            onSaveProgress={handleSaveProgress}
+          />
+        );
+      default:
+        return (
+          <View style={styles.centerContainer}>
+            <Text style={styles.errorText}>Ismeretlen feladattípus: {task.fel_tipus}</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={() => router.back()}>
+              <Text style={styles.retryBtnTxt}>Vissza a feladatokhoz</Text>
+            </TouchableOpacity>
+          </View>
+        );
+    }
+  }
+
+  const taskComponent = mapTaskType();
+
+  return (
+    <View style={[styles.container, dynamicStyles.container]}>
+      {taskComponent}
+      <View style={[styles.footerButtons, dynamicStyles.footerButtons]}>
+        <TouchableOpacity style={[styles.btn, styles.cancelBtn, dynamicStyles.cancelBtn]} onPress={handleOnCancel}>
+          <Text style={styles.cancelBtnText}>Vissza</Text>
+        </TouchableOpacity>
+
+        {
+          extraButtons.map((btn, idx) => (
+            <TouchableOpacity key={idx} style={[styles.btn, styles.chatBtn, dynamicStyles.chatBtn]} onPress={btn.handler}>
+              <Text style={styles.chatBtnText}>{btn.text}</Text>
+            </TouchableOpacity>
+          ))
+        }
+
+        <Animated.View style={{ opacity: blinkAnim, flex: 1 }}>
+          <TouchableOpacity style={[styles.btn, styles.chatBtn, dynamicStyles.chatBtn]} onPress={handleOnChat}>
+            <Text style={styles.chatBtnText}>Csevegés 💬</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    </View>
+  )
 }
 
+
+
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   centerContainer: {
     flex: 1,
     alignItems: 'center',
@@ -358,6 +356,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
+  btn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   retryBtn: {
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -367,5 +372,27 @@ const styles = StyleSheet.create({
   retryBtnTxt: {
     color: '#FFFFFF',
     fontWeight: 'bold',
+  },
+  cancelBtn: {
+    backgroundColor: '#64748B',
+  },
+  cancelBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  chatBtn: {
+    backgroundColor: '#0284C7',
+  },
+  chatBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  footerButtons: {
+    flexDirection: 'row',
+    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    gap: 8,
   },
 });
