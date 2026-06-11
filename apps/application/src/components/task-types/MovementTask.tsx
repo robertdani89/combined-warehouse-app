@@ -417,7 +417,7 @@ export default function MovementTask({
 
             {issueState === null && (
               <TouchableOpacity
-                style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn, { marginTop: 12, minHeight: 44 }]}
+                style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn, { marginTop: 12, flex: 0, minHeight: 44 }]}
                 onPress={() => setModalVisible(false)}
               >
                 <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Mégse</Text>

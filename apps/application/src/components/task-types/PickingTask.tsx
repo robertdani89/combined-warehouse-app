@@ -559,7 +559,7 @@ export default function PickingTask({
 
             {issueState === null && (
               <TouchableOpacity
-                style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn, { marginTop: 12, minHeight: 40 }]}
+                style={[styles.modalBtn, styles.modalCloseBtn, dynamicStyles.modalCloseBtn, { marginTop: 12, flex: 0, minHeight: 40 }]}
                 onPress={() => setModalVisible(false)}
               >
                 <Text style={[styles.modalCancelTxt, dynamicStyles.modalCancelTxt]}>Mégse</Text>
