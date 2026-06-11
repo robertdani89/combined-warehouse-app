@@ -10,7 +10,7 @@ export interface TaskMessage {
 
 @Injectable()
 export class MessagesService {
-  constructor(private readonly mssqlService: MssqlService) {}
+  constructor(private readonly mssqlService: MssqlService) { }
 
   async getUzenetek(feladatId: number, userName: string): Promise<TaskMessage[]> {
     const sql = `

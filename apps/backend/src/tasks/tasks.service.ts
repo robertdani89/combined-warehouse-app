@@ -1,43 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { MssqlService } from '../database/mssql.service';
-import { MessagesService, TaskMessage } from '../messages/messages.service';
-
-export interface TaskItem {
-  _id: number;
-  [key: string]: unknown;
-}
-
-export interface TaskRecord {
-  _id: number;
-  allapot: number;
-  [key: string]: unknown;
-  items?: TaskItem[];
-  messages?: TaskMessage[];
-  hasUnread?: boolean;
-}
-
-export interface ReportLogEntry {
-  naplo_allapot?: number;
-  naplo_mennyiseg?: number;
-  naplo_megjegyzes?: string;
-  naplo_ido?: string;
-}
-
-export interface ReportItem {
-  tetel_id?: number;
-  _id?: number;
-  tetel_etk?: string;
-  tetel_tarolohely?: string;
-  naplo: ReportLogEntry[];
-}
-
-export interface ReportTask {
-  id: number;
-  allapot?: number;
-  befejezte?: string;
-  elkezdte?: string;
-  items?: ReportItem[];
-}
+import { MessagesService } from '../messages/messages.service';
+import { TaskRecord, TaskItem, ReportTask, ReportItem } from './tasks.type';
 
 @Injectable()
 export class TasksService {

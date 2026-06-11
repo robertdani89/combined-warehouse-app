@@ -1,31 +1,17 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post, Put, Query } from '@nestjs/common';
-import { ReportItem, ReportTask, TaskItem, TaskRecord, TasksService } from './tasks.service';
+import { TasksService } from './tasks.service';
+import type { TaskRecord, MarkReceivedRequest, TaskItem, ReportTaskItemRequest, ReportTasksRequest, RequestTasksRequest } from './tasks.type';
+import { tasksMock } from './tasks.mock';
 
-interface MarkReceivedRequest {
-  taskIds: number[];
-}
 
-interface ReportTasksRequest {
-  tasks: ReportTask[];
-  phoneTime?: string;
-}
-
-interface ReportTaskItemRequest {
-  item: ReportItem;
-  phoneTime?: string;
-}
-
-interface RequestTasksRequest {
-  userName: string;
-  taskIds: number[];
-}
 
 @Controller('tasks')
 export class TasksController {
-  constructor(private readonly tasksService: TasksService) {}
+  constructor(private readonly tasksService: TasksService) { }
 
   @Get()
   async getTasks(@Query('userName') userName: string): Promise<TaskRecord[]> {
+    // return tasksMock;
     return this.tasksService.getTasks(userName);
   }
 
