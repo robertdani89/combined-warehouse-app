@@ -87,9 +87,6 @@ export default function PickingTask({
     cikknev: {
       color: colors.textMain,
     },
-    detailsRowText: {
-      color: colors.textSecondary,
-    },
     footerButtons: {
       backgroundColor: colors.cardBackground,
       borderTopColor: colors.border,
@@ -357,14 +354,12 @@ export default function PickingTask({
                   <View style={styles.infoWrapper}>
                     <Text style={[styles.cikknev, dynamicStyles.cikknev, { color: textC }]}>{item.Cikknev}</Text>
                     <Text style={[styles.detailsText, { color: textC }]}>{item.Etk}</Text>
-                    <View style={styles.detailsRow}>
-                      <Text style={[styles.detailsText, { color: textC }]}>
-                        Tároló: <Text style={styles.boldText}>{item.Tarolo || '-'}</Text>
-                      </Text>
-                      <Text style={[styles.detailsText, { color: textC }]}>
-                        Mennyiség: <Text style={styles.boldText}>{item.Mennyiseg} {item.Mero || 'db'}</Text>
-                      </Text>
-                    </View>
+                    <Text style={[styles.detailsText, { color: textC }]}>
+                      Tároló: <Text style={styles.boldText}>{item.Tarolo || '-'}</Text>
+                    </Text>
+                    <Text style={[styles.detailsText, { color: textC }]}>
+                      Mennyiség: <Text style={styles.boldText}>{item.Mennyiseg} {item.Mero || 'db'}</Text>
+                    </Text>
                     {item.Att4 ? (
                       <Text style={[styles.specMegj, { color: textC }]}>Infó: {item.Att4}</Text>
                     ) : null}
@@ -691,10 +686,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     marginBottom: 4,
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    gap: 16,
   },
   detailsText: {
     fontSize: 13,

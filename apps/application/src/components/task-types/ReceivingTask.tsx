@@ -343,14 +343,12 @@ export default function ReceivingTask({
                   <View style={styles.infoWrapper}>
                     <Text style={[styles.cikknev, dynamicStyles.cikknev, { color: textC }]}>{item.Cikknev}</Text>
                     <Text style={[styles.detailsText, { color: textC }]}>{item.Etk}</Text>
-                    <View style={styles.detailsRow}>
-                      <Text style={[styles.detailsText, { color: textC }]}>
-                        Tároló: <Text style={styles.boldText}>{item.Tarolo || '-'}</Text>
-                      </Text>
-                      <Text style={[styles.detailsText, { color: textC }]}>
-                        Mennyiség: <Text style={styles.boldText}>{item.Mennyiseg} {item.Mero || 'db'}</Text>
-                      </Text>
-                    </View>
+                    <Text style={[styles.detailsText, { color: textC }]}>
+                      Tároló: <Text style={styles.boldText}>{item.Tarolo || '-'}</Text>
+                    </Text>
+                    <Text style={[styles.detailsText, { color: textC }]}>
+                      Mennyiség: <Text style={styles.boldText}>{item.Mennyiseg} {item.Mero || 'db'}</Text>
+                    </Text>
                     {megj ? (
                       <Text style={[styles.specMegj, { color: textC, fontWeight: '700' }]}>
                         Megj: {megj}
@@ -642,10 +640,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     marginBottom: 4,
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    gap: 16,
   },
   detailsText: {
     fontSize: 13,

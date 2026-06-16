@@ -213,14 +213,12 @@ export default function MovementTask({
           <View style={styles.itemInfo}>
             <Text style={[styles.cikknev, { color: textC }]}>{item.Cikknev}</Text>
             <Text style={[styles.cikknev, { color: textC, fontSize: 10 }]}>{item.Etk}</Text>
-            <View style={styles.detailsRow}>
-              <Text style={[styles.detailsText, { color: textC }]}>
-                Tárolóhely: <Text style={[styles.boldText, dynamicStyles.boldText]}>{item.Tarolo || '-'}</Text>
-              </Text>
-              <Text style={[styles.detailsText, { color: textC }]}>
-                Mennyiség: <Text style={[styles.boldText, dynamicStyles.boldText]}>{item.Mennyiseg} {item.Mero || 'db'}</Text>
-              </Text>
-            </View>
+            <Text style={[styles.detailsText, { color: textC }]}>
+              Tárolóhely: <Text style={[styles.boldText, dynamicStyles.boldText]}>{item.Tarolo || '-'}</Text>
+            </Text>
+            <Text style={[styles.detailsText, { color: textC }]}>
+              Mennyiség: <Text style={[styles.boldText, dynamicStyles.boldText]}>{item.Mennyiseg} {item.Mero || 'db'}</Text>
+            </Text>
             {megj ? (
               <Text style={[styles.commentText, dynamicStyles.commentText, { color: textC }]}>Megjegyzés: {megj}</Text>
             ) : null}
@@ -510,10 +508,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     marginBottom: 6,
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    gap: 16,
   },
   detailsText: {
     fontSize: 13,
