@@ -34,6 +34,8 @@ type ApiContextValue = {
   saveVegzes: (userName: string, idoString: string) => Promise<boolean>;
   saveFirebaseToken: (userName: string, key: string) => Promise<boolean>;
   searchInventory: (leiras: string, id?: number) => Promise<any[]>;
+  getFreeTasks: () => Promise<TaskRecord[]>;
+  requestTasks: (userName: string, taskIds: number[]) => Promise<boolean>;
 };
 
 const ApiContext = createContext<ApiContextValue | undefined>(undefined);
@@ -399,6 +401,27 @@ export function ApiProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const getFreeTasks = useCallback(
+    async (): Promise<TaskRecord[]> => {
+      return requestJson<TaskRecord[]>('/tasks/free/list');
+    },
+    [],
+  );
+
+  const requestTasks = useCallback(
+    async (userName: string, taskIds: number[]): Promise<boolean> => {
+      const result = await requestJson<{ success: boolean }>(
+        '/tasks/request',
+        {
+          method: 'POST',
+          body: JSON.stringify({ userName, taskIds }),
+        },
+      );
+      return result.success;
+    },
+    [],
+  );
+
   const value = useMemo<ApiContextValue>(
     () => ({
       backendUrl,
@@ -414,8 +437,10 @@ export function ApiProvider({ children }: { children: ReactNode }) {
       saveVegzes,
       saveFirebaseToken,
       searchInventory,
+      getFreeTasks,
+      requestTasks,
     }),
-    [backendUrl, getTasks, getTaskItems, reportTasks, reportItem, getRoute, getUzenetek, postUzenet, login, hasVegezIdo, saveVegzes],
+    [backendUrl, getTasks, getTaskItems, reportTasks, reportItem, getRoute, getUzenetek, postUzenet, login, hasVegezIdo, saveVegzes, getFreeTasks, requestTasks],
   );
 
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;

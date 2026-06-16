@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, Alert } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApi } from '../context/api';
@@ -28,13 +28,18 @@ function getCurrentTimeString(): string {
 
 export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
   const { colors } = useAppTheme();
-  const { getTasks, getTaskItems, reportTasks, hasVegezIdo } = useApi();
+  const { getTasks, getTaskItems, reportTasks, hasVegezIdo, getFreeTasks, requestTasks } = useApi();
   const router = useRouter();
 
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showLeaveTimePicker, setShowLeaveTimePicker] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showFreeTasksModal, setShowFreeTasksModal] = useState(false);
+  const [freeTasks, setFreeTasks] = useState<TaskRecord[]>([]);
+  const [selectedFreeTaskIds, setSelectedFreeTaskIds] = useState<number[]>([]);
+  const [loadingFreeTasks, setLoadingFreeTasks] = useState(false);
 
   const isFocused = useIsFocused();
 
@@ -145,6 +150,7 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
   }, [isFocused, checkAndAutoReportTasks, loadTasks]);
 
   const handleLogout = useCallback(() => {
+    setShowMenu(false);
     Alert.alert(
       'Kijelentkezés',
       'Biztosan ki szeretnél lépni?',
@@ -162,6 +168,38 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
       { cancelable: true }
     );
   }, [onLogout]);
+
+  const handlePickFreeTasks = useCallback(async () => {
+    setLoadingFreeTasks(true);
+    setSelectedFreeTaskIds([]);
+    setFreeTasks([]);
+    setShowFreeTasksModal(true);
+    try {
+      const list = await getFreeTasks();
+      setFreeTasks(list);
+    } catch {
+      setFreeTasks([]);
+    } finally {
+      setLoadingFreeTasks(false);
+    }
+  }, [getFreeTasks]);
+
+  const toggleFreeTaskSelection = useCallback((id: number) => {
+    setSelectedFreeTaskIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }, []);
+
+  const handleRequestTasks = useCallback(async () => {
+    if (selectedFreeTaskIds.length === 0) return;
+    try {
+      await requestTasks(session.userName ?? session.name, selectedFreeTaskIds);
+      setShowFreeTasksModal(false);
+      await loadTasks();
+    } catch {
+      Alert.alert('Hiba', 'Nem sikerült felvenni a feladatokat.');
+    }
+  }, [selectedFreeTaskIds, requestTasks, session.userName, session.name, loadTasks]);
 
   const activeTasks = tasks.filter((t) => (t.allapot ?? 0) < 5);
   const finishedCount = tasks.filter((t) => (t.allapot ?? 0) >= 5).length;
@@ -193,6 +231,32 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
     logoutButtonText: {
       color: colors.textMain,
     },
+    menuCard: {
+      backgroundColor: colors.cardBackground,
+      borderColor: colors.border,
+    },
+    menuItemText: {
+      color: colors.textMain,
+    },
+    modalOverlay: {
+      backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    freeTaskCard: {
+      backgroundColor: colors.cardBackground,
+      borderColor: colors.border,
+    },
+    freeTaskTitle: {
+      color: colors.textMain,
+    },
+    freeTaskSubtitle: {
+      color: colors.textSecondary,
+    },
+    freeTaskSelected: {
+      borderColor: colors.textMain,
+    },
+    modalTitle: {
+      color: colors.textMain,
+    },
   });
 
   return (
@@ -200,16 +264,17 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
       <View style={styles.headerRow}>
         <Text style={[styles.greeting, dynamicStyles.greeting]}>Szia, {session.name}!</Text>
         <View style={styles.headerButtons}>
-          <Pressable style={[styles.secondaryButton, dynamicStyles.secondaryButton]} onPress={loadTasks}>
-            <Text style={[styles.secondaryButtonText, dynamicStyles.secondaryButtonText]}>Frissítés</Text>
+          {/* Refresh icon */}
+          <Pressable style={[styles.iconButton, dynamicStyles.secondaryButton]} onPress={loadTasks}>
+            <Text style={[styles.iconButtonText, dynamicStyles.secondaryButtonText]}>↻</Text>
           </Pressable>
-          <Pressable style={[styles.secondaryButton, dynamicStyles.secondaryButton]} onPress={() => router.push('/lezart-feladatok')}>
-            <Text style={[styles.secondaryButtonText, dynamicStyles.secondaryButtonText]}>
-              Lezárt{finishedCount > 0 ? ` (${finishedCount})` : ''}
-            </Text>
+          {/* Pick free task */}
+          <Pressable style={[styles.iconButton, dynamicStyles.secondaryButton]} onPress={handlePickFreeTasks}>
+            <Text style={[styles.iconButtonText, dynamicStyles.secondaryButtonText]}>+</Text>
           </Pressable>
-          <Pressable style={[styles.logoutButton, dynamicStyles.logoutButton]} onPress={handleLogout}>
-            <Text style={[styles.logoutButtonText, dynamicStyles.logoutButtonText]}>Kilépés</Text>
+          {/* More menu */}
+          <Pressable style={[styles.iconButton, dynamicStyles.secondaryButton]} onPress={() => setShowMenu(true)}>
+            <Text style={[styles.iconButtonText, dynamicStyles.secondaryButtonText]}>⋯</Text>
           </Pressable>
         </View>
       </View>
@@ -237,6 +302,88 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
         onLogout={handleLogout}
         onSaved={() => setShowLeaveTimePicker(false)}
       />
+
+      {/* ⋯ dropdown menu */}
+      <Modal
+        transparent
+        visible={showMenu}
+        animationType="fade"
+        onRequestClose={() => setShowMenu(false)}
+      >
+        <Pressable style={[styles.menuOverlay, dynamicStyles.modalOverlay]} onPress={() => setShowMenu(false)}>
+          <View style={[styles.menuCard, dynamicStyles.menuCard]}>
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => { setShowMenu(false); router.push('/lezart-feladatok'); }}
+            >
+              <Text style={[styles.menuItemText, dynamicStyles.menuItemText]}>
+                Lezárt{finishedCount > 0 ? ` (${finishedCount})` : ''}
+              </Text>
+            </Pressable>
+            <View style={styles.menuDivider} />
+            <Pressable style={styles.menuItem} onPress={handleLogout}>
+              <Text style={[styles.menuItemText, dynamicStyles.menuItemText]}>Kilépés</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Free tasks picker modal */}
+      <Modal
+        transparent
+        visible={showFreeTasksModal}
+        animationType="slide"
+        onRequestClose={() => setShowFreeTasksModal(false)}
+      >
+        <Pressable style={[styles.freeTasksOverlay, dynamicStyles.modalOverlay]} onPress={() => setShowFreeTasksModal(false)}>
+          <View style={[styles.freeTasksSheet, dynamicStyles.menuCard]}>
+            <Text style={[styles.freeTasksTitle, dynamicStyles.modalTitle]}>Szabad feladatok</Text>
+            {loadingFreeTasks ? (
+              <Text style={[styles.body, dynamicStyles.body]}>Betöltés...</Text>
+            ) : freeTasks.length === 0 ? (
+              <Text style={[styles.body, dynamicStyles.body]}>Nincs szabad feladat.</Text>
+            ) : (
+              <ScrollView style={styles.freeTasksList}>
+                {freeTasks.map((task) => {
+                  const selected = selectedFreeTaskIds.includes(task._id);
+                  return (
+                    <Pressable
+                      key={task._id}
+                      style={[styles.freeTaskItem, dynamicStyles.freeTaskCard, selected && dynamicStyles.freeTaskSelected]}
+                      onPress={() => toggleFreeTaskSelection(task._id)}
+                    >
+                      <Text style={[styles.freeTaskName, dynamicStyles.freeTaskTitle]}>
+                        {selected ? '☑ ' : '☐ '}{task.megnevezes ?? `#${task._id}`}
+                      </Text>
+                      {task.comment ? (
+                        <Text style={[styles.freeTaskSub, dynamicStyles.freeTaskSubtitle]}>{task.comment}</Text>
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            )}
+            <View style={styles.freeTasksActions}>
+              <Pressable
+                style={[styles.iconButton, dynamicStyles.secondaryButton]}
+                onPress={() => setShowFreeTasksModal(false)}
+              >
+                <Text style={[styles.secondaryButtonText, dynamicStyles.secondaryButtonText]}>Mégse</Text>
+              </Pressable>
+              {selectedFreeTaskIds.length > 0 ? (
+                <Pressable
+                  style={[styles.iconButton, dynamicStyles.secondaryButton]}
+                  onPress={handleRequestTasks}
+                >
+                  <Text style={[styles.secondaryButtonText, dynamicStyles.secondaryButtonText]}>
+                    Felveszem ({selectedFreeTaskIds.length})
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -288,6 +435,22 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 8,
   },
+  iconButton: {
+    backgroundColor: '#E5E7EB',
+    borderRadius: 2,
+    borderWidth: 1,
+    borderColor: '#9CA3AF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    minWidth: 36,
+    alignItems: 'center',
+  },
+  iconButtonText: {
+    color: '#111827',
+    fontSize: 18,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
   secondaryButton: {
     backgroundColor: '#E5E7EB',
     borderRadius: 2,
@@ -301,17 +464,83 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  logoutButton: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 2,
-    borderWidth: 1,
-    borderColor: '#9CA3AF',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+  // ⋯ dropdown menu
+  menuOverlay: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 52,
+    paddingRight: 8,
   },
-  logoutButtonText: {
+  menuCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    minWidth: 160,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  menuItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  menuItemText: {
     color: '#111827',
-    fontSize: 14,
+    fontSize: 15,
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  // Free tasks modal
+  freeTasksOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  freeTasksSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    padding: 12,
+    maxHeight: '75%',
+  },
+  freeTasksTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 10,
+    color: '#111827',
+  },
+  freeTasksList: {
+    flexGrow: 0,
+    marginBottom: 10,
+  },
+  freeTaskItem: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 6,
+  },
+  freeTaskName: {
+    fontSize: 15,
     fontWeight: '500',
+    color: '#111827',
+  },
+  freeTaskSub: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  freeTasksActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
   },
 });
