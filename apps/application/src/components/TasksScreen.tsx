@@ -73,7 +73,7 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
         const allDone = items.every((item) => {
           const override = progress[item._id];
           const allapot = override ? override.allapot : (item.allapot ?? 0);
-          return allapot !== 0;
+          return allapot > 0;
         });
 
         if (allDone) {
