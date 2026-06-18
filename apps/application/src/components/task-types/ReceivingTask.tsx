@@ -614,9 +614,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   groupHeaderTxt: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: 'bold',
-    color: '#334155',
   },
   itemCard: {
     backgroundColor: '#FFFFFF',

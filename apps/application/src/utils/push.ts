@@ -25,15 +25,12 @@ export async function getDevicePushToken(): Promise<string | null> {
 
     if (!finalGranted) return null;
 
-    // Try to get the native device token (FCM on Android) first
+    // Try to get the native FCM device token first.
+    // Requires google-services.json to be configured in android/app/.
     try {
-      // getDevicePushTokenAsync returns { type, data }
-      // It requires the native app to be configured with FCM (google-services.json)
-      // If not configured, it may throw — fall back to Expo token.
-      // @ts-ignore
       const nativeToken = await Notifications.getDevicePushTokenAsync();
-      if (nativeToken && (nativeToken as any).data) {
-        return (nativeToken as any).data as string;
+      if (nativeToken?.data) {
+        return nativeToken.data as string;
       }
     } catch (e) {
       // ignore and fallback

@@ -329,7 +329,7 @@ export default function PickingTask({
             if (sortOption === 3) {
               return itm.vevo || 'Sima ügyfél';
             }
-            return itm.Att2 || itm.Tarolo1?.toString() || 'Fő raktár';
+            return itm.Att2 || itm.Tarolo1?.toString() || 'Ismeretlen raktár';
           };
           const prevItem = index > 0 ? sortedItems[index - 1] : null;
           const showHeader = !prevItem || getGroupKey(prevItem) !== getGroupKey(item);
@@ -660,9 +660,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   groupHeaderTxt: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: 'bold',
-    color: '#334155',
   },
   itemCard: {
     backgroundColor: '#FFFFFF',

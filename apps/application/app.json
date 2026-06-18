@@ -6,11 +6,20 @@
     "version": "1.0.0",
     "plugins": [
       "expo-router",
-      "./plugins/withNetworkSecurityConfig"
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#0F766E",
+          "androidMode": "default"
+        }
+      ],
+      "./plugins/withNetworkSecurityConfig",
+      "./plugins/withGoogleServices"
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -28,6 +37,7 @@
     },
     "android": {
       "usesCleartextTraffic": true,
+      "googleServicesFile": "./android/app/google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
