@@ -11,7 +11,6 @@ import {
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApi } from '../context/api';
 import { TaskMessage } from '../types/task';
 import { LoginSession } from '../types/auth';
@@ -26,7 +25,6 @@ export default function ChatScreen({ session }: ChatScreenProps) {
   const router = useRouter();
   const { getUzenetek, postUzenet } = useApi();
   const { colors } = useAppTheme();
-  const insets = useSafeAreaInsets();
 
   const taskId = id ? parseInt(id, 10) : NaN;
 
@@ -124,7 +122,7 @@ export default function ChatScreen({ session }: ChatScreenProps) {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior="padding"
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
