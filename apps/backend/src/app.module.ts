@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthModule } from './auth/auth.module';
 import { ClientModule } from './client/client.module';
+import { ErrorLogModule } from './error-log/error-log.module';
 import { MssqlModule } from './database/mssql.module';
 import { MessagesModule } from './messages/messages.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -25,6 +26,7 @@ import { TasksModule } from './tasks/tasks.module';
     SearchModule,
     ClientModule,
     NotificationsModule,
+    ErrorLogModule,
   ],
   controllers: [AppController],
   providers: [
@@ -35,4 +37,4 @@ import { TasksModule } from './tasks/tasks.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

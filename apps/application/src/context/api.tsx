@@ -2,6 +2,7 @@ import { ReactNode, createContext, useCallback, useContext, useMemo, useState, u
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LoginSession } from '../types/auth';
 import { TaskRecord, TaskItem, ReportTask, ReportItem, TaskMessage } from '../types/task';
+import { AppErrorEntry } from '../types/errorLog';
 
 type LoginResponse = {
   success: boolean;
@@ -36,6 +37,7 @@ type ApiContextValue = {
   searchInventory: (leiras: string, id?: number) => Promise<any[]>;
   getFreeTasks: () => Promise<TaskRecord[]>;
   requestTasks: (userName: string, taskIds: number[]) => Promise<boolean>;
+  syncErrorLogs: (entries: AppErrorEntry[]) => Promise<void>;
 };
 
 const ApiContext = createContext<ApiContextValue | undefined>(undefined);
@@ -422,6 +424,19 @@ export function ApiProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const syncErrorLogs = useCallback(
+    async (entries: AppErrorEntry[]): Promise<void> => {
+      await requestJson<{ success: boolean }>(
+        '/error-log',
+        {
+          method: 'POST',
+          body: JSON.stringify({ entries }),
+        },
+      );
+    },
+    [],
+  );
+
   const value = useMemo<ApiContextValue>(
     () => ({
       backendUrl,
@@ -439,8 +454,9 @@ export function ApiProvider({ children }: { children: ReactNode }) {
       searchInventory,
       getFreeTasks,
       requestTasks,
+      syncErrorLogs,
     }),
-    [backendUrl, getTasks, getTaskItems, reportTasks, reportItem, getRoute, getUzenetek, postUzenet, login, hasVegezIdo, saveVegzes, getFreeTasks, requestTasks],
+    [backendUrl, getTasks, getTaskItems, reportTasks, reportItem, getRoute, getUzenetek, postUzenet, login, hasVegezIdo, saveVegzes, getFreeTasks, requestTasks, syncErrorLogs],
   );
 
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;

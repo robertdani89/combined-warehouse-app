@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Villumen Raktár",
-    "slug": "villumen-raktar",
+    "slug": "villumen",
     "scheme": "villumenraktar",
     "version": "1.0.0",
     "plugins": [
@@ -53,6 +53,13 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "5430aa5b-533c-472c-82b5-d3ded05c8fa6"
+      }
+    },
+    "owner": "robertdani89"
   }
 }

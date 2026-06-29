@@ -3,8 +3,9 @@ import { ActivityIndicator, StyleSheet, Text, useColorScheme } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ApiProvider } from '../src/context/api';
+import { ApiProvider, useApi } from '../src/context/api';
 import { AuthProvider, useAuth } from '../src/context/auth';
+import { ErrorLogProvider, useErrorLog } from '../src/context/errorLog';
 
 function AuthGuardedLayout() {
   const { session, isBooting } = useAuth();
@@ -12,6 +13,13 @@ function AuthGuardedLayout() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const statusBarStyle = colorScheme === 'dark' ? 'light' : 'dark';
+  const { syncErrorLogs } = useApi();
+  const { registerSyncFn } = useErrorLog();
+
+  // Wire the API sync function into the error log context once available
+  useEffect(() => {
+    registerSyncFn(syncErrorLogs);
+  }, [registerSyncFn, syncErrorLogs]);
 
   useEffect(() => {
     if (isBooting) return;
@@ -46,9 +54,11 @@ function AuthGuardedLayout() {
 export default function RootLayout() {
   return (
     <ApiProvider>
-      <AuthProvider>
-        <AuthGuardedLayout />
-      </AuthProvider>
+      <ErrorLogProvider>
+        <AuthProvider>
+          <AuthGuardedLayout />
+        </AuthProvider>
+      </ErrorLogProvider>
     </ApiProvider>
   );
 }
