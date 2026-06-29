@@ -11,8 +11,8 @@ export class TasksController {
 
   @Get()
   async getTasks(@Query('userName') userName: string): Promise<TaskRecord[]> {
-    return tasksMock;
-    // return this.tasksService.getTasks(userName);
+    // return tasksMock;
+    return this.tasksService.getTasks(userName);
   }
 
   @Get('has-empty')
