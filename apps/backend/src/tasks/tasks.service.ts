@@ -247,7 +247,7 @@ export class TasksService {
         'reportItems.reportItemLog',
         'EXEC raktar_feladat_report_tetel @id = @p0, @allapot = @p1, @menny = @p2, @megjegyzes = @p3, @ido = @p4;',
         [
-          itemId ?? null,
+          itemId != null ? Number(itemId) : null,
           log.naplo_allapot ?? null,
           log.naplo_mennyiseg ?? null,
           log.naplo_megjegyzes ?? null,
