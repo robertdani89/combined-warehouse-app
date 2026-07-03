@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { ConnectionPool, config as SqlConfig, IRecordSet, QueryResult, Request } from 'mssql';
+import { ConnectionPool, config as SqlConfig, IRecordSet, Int, QueryResult, Request } from 'mssql';
 
 type SqlParams = Record<string, unknown> | unknown[];
 
@@ -86,13 +86,21 @@ export class MssqlService implements OnModuleDestroy {
 
     if (Array.isArray(params)) {
       params.forEach((value, index) => {
-        request.input(`p${index}`, value as never);
+        if (typeof value === 'number' && Number.isInteger(value) && value >= -2147483648 && value <= 2147483647) {
+          request.input(`p${index}`, Int, value);
+        } else {
+          request.input(`p${index}`, value as never);
+        }
       });
       return request;
     }
 
     for (const [key, value] of Object.entries(params)) {
-      request.input(key, value as never);
+      if (typeof value === 'number' && Number.isInteger(value) && value >= -2147483648 && value <= 2147483647) {
+        request.input(key, Int, value);
+      } else {
+        request.input(key, value as never);
+      }
     }
 
     return request;
