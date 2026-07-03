@@ -200,6 +200,13 @@ export class TasksService {
     let itemId = item.tetel_id;
     timeOffset ??= 0;
 
+    const isValidIntId = (v: unknown): v is number =>
+      typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 2147483647;
+
+    if (!isValidIntId(itemId)) {
+      return;
+    }
+
     // if (!itemId) {
     //   const sourceId = item._id ?? -1;
     //   const existing = await this.safeQuery<{ tetelsz: number }>(
