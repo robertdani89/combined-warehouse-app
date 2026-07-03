@@ -19,7 +19,7 @@ export class TasksService {
       return await this.mssqlService.query<T>(sql, params);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`SQL query failed in ${context}: ${message}`);
+      throw new Error(`SQL query failed in ${context}: ${message}\nSQL: ${sql}\nParams: ${JSON.stringify(params)}`);
     }
   }
 
@@ -32,7 +32,7 @@ export class TasksService {
       await this.mssqlService.execute(sql, params);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`SQL execute failed in ${context}: ${message}`);
+      throw new Error(`SQL execute failed in ${context}: ${message}\nSQL: ${sql}\nParams: ${JSON.stringify(params)}`);
     }
   }
 
