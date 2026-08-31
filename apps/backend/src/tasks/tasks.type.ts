@@ -56,7 +56,7 @@ export interface ReportLogEntry {
     naplo_allapot?: number;
     naplo_mennyiseg?: number;
     naplo_megjegyzes?: string;
-    naplo_ido?: string;
+    naplo_ido: string;
 }
 
 export interface ReportTask {

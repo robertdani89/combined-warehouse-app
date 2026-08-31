@@ -58,7 +58,7 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
 
         const progress = JSON.parse(progressStr) as Record<
           number,
-          { allapot: number; mennyiseg?: number; megjegyzes?: string }
+          { allapot: number; mennyiseg?: number; megjegyzes?: string; ido?: string }
         >;
 
         let items: TaskItem[] = [];
@@ -77,6 +77,12 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
         });
 
         if (allDone) {
+          const now = getCurrentTimeString();
+          const itemTimes = Object.values(progress)
+            .map((info) => info.ido)
+            .filter((ido): ido is string => !!ido)
+            .sort();
+
           const reportItems: ReportItem[] = Object.entries(progress).map(([itemIdStr, info]) => {
             const itemId = parseInt(itemIdStr, 10);
             const orig = items.find((i) => i._id === itemId);
@@ -91,7 +97,7 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
                   naplo_allapot: info.allapot,
                   naplo_mennyiseg: info.mennyiseg,
                   naplo_megjegyzes: info.megjegyzes || '',
-                  naplo_ido: getCurrentTimeString(),
+                  naplo_ido: info.ido ?? now,
                 },
               ],
             };
@@ -100,8 +106,8 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
           const reportPayload: ReportTask = {
             id: taskId,
             allapot: 4,
-            elkezdte: getCurrentTimeString(),
-            befejezte: getCurrentTimeString(),
+            elkezdte: itemTimes[0] ?? now,
+            befejezte: itemTimes[itemTimes.length - 1] ?? now,
             items: reportItems,
           };
 
@@ -130,7 +136,6 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
       setTasks(taskList);
     } catch {
       setLoadError('Nem sikerült betölteni a feladatokat.');
-      setTasks([]);
     } finally {
       setIsLoading(false);
     }
@@ -200,9 +205,6 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
       Alert.alert('Hiba', 'Nem sikerült felvenni a feladatokat.');
     }
   }, [selectedFreeTaskIds, requestTasks, session.userName, session.name, loadTasks]);
-
-  const activeTasks = tasks.filter((t) => (t.allapot ?? 0) < 5);
-  const finishedCount = tasks.filter((t) => (t.allapot ?? 0) >= 5).length;
 
   const dynamicStyles = StyleSheet.create({
     screen: {
@@ -279,16 +281,16 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
         </View>
       </View>
 
-      {isLoading ? <Text style={[styles.body, dynamicStyles.body]}>Feladatok betöltése...</Text> : null}
+      {isLoading && tasks.length === 0 ? <Text style={[styles.body, dynamicStyles.body]}>Feladatok betöltése...</Text> : null}
       {loadError ? <Text style={[styles.errorText, dynamicStyles.errorText]}>{loadError}</Text> : null}
 
-      {!isLoading && !loadError && activeTasks.length === 0 ? (
-        <Text style={[styles.body, dynamicStyles.body]}>Nincs aktív feladat.</Text>
+      {!isLoading && !loadError && tasks.length === 0 ? (
+        <Text style={[styles.body, dynamicStyles.body]}>Nincs feladat.</Text>
       ) : null}
 
-      {!isLoading && !loadError && activeTasks.length > 0 ? (
+      {tasks.length > 0 ? (
         <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-          {activeTasks.map((task) => (
+          {tasks.map((task) => (
             <Pressable key={task._id} onPress={() => router.push(`/feladat/${task._id}`)}>
               <TaskListItem task={task} />
             </Pressable>
@@ -312,14 +314,6 @@ export default function TasksScreen({ session, onLogout }: TasksScreenProps) {
       >
         <Pressable style={[styles.menuOverlay, dynamicStyles.modalOverlay]} onPress={() => setShowMenu(false)}>
           <View style={[styles.menuCard, dynamicStyles.menuCard]}>
-            <Pressable
-              style={styles.menuItem}
-              onPress={() => { setShowMenu(false); router.push('/lezart-feladatok'); }}
-            >
-              <Text style={[styles.menuItemText, dynamicStyles.menuItemText]}>
-                Lezárt{finishedCount > 0 ? ` (${finishedCount})` : ''}
-              </Text>
-            </Pressable>
             <View style={styles.menuDivider} />
             <Pressable style={styles.menuItem} onPress={handleLogout}>
               <Text style={[styles.menuItemText, dynamicStyles.menuItemText]}>Kilépés</Text>

@@ -207,39 +207,8 @@ export class TasksService {
       return;
     }
 
-    // if (!itemId) {
-    //   const sourceId = item._id ?? -1;
-    //   const existing = await this.safeQuery<{ tetelsz: number }>(
-    //     'reportItems.findExistingItem',
-    //     `
-    //     SELECT ISNULL((
-    //       SELECT _id
-    //       FROM raktaros_feladat_tetelek
-    //       WHERE FeladatId = @p0 AND Att5 = @p1
-    //     ), -1) tetelsz;
-    //     `,
-    //     [taskId, sourceId],
-    //   );
-
-    //   itemId = existing[0]?.tetelsz ?? -1;
-
-    //   if (itemId === -1) {
-    //     const inserted = await this.safeQuery<{ tetelsz: number }>(
-    //       'reportItems.insertItem',
-    //       `
-    //       SET NOCOUNT ON;
-    //       INSERT raktaros_feladat_tetelek (FeladatId, Etk, Tarolo, Att5)
-    //       VALUES (@p0, @p1, @p2, @p3);
-    //       SELECT CONVERT(int, SCOPE_IDENTITY()) as tetelsz;
-    //       `,
-    //       [taskId, item.tetel_etk ?? null, item.tetel_tarolohely ?? null, sourceId],
-    //     );
-    //     itemId = inserted[0]?.tetelsz;
-    //   }
-    // }
-
     for (const log of item.naplo ?? []) {
-      let time = log.naplo_ido ?? null;
+      let time = log.naplo_ido;
       if (time && timeOffset) {
         const timestamp = Math.floor(new Date(time).getTime() / 1000);
         if (!Number.isNaN(timestamp)) {
@@ -248,6 +217,15 @@ export class TasksService {
             .slice(0, 19)
             .replace('T', ' ');
         }
+      }
+
+      const isDuplicate = await this.isDuplicateNaploEntry(
+        itemId,
+        time,
+      );
+
+      if (isDuplicate) {
+        continue;
       }
 
       await this.safeExecute(
@@ -262,6 +240,27 @@ export class TasksService {
         ],
       );
     }
+  }
+
+  // Skips insert when this exact Ido was already logged, or the most recent log already has the same state
+  private async isDuplicateNaploEntry(
+    tetelId: number,
+    ido: string,
+  ): Promise<boolean> {
+    const rows = await this.safeQuery<{ isDuplicate: number }>(
+      'reportItems.checkDuplicateNaplo',
+      `
+      SELECT CASE WHEN EXISTS (
+        SELECT 1
+        FROM raktaros_feladat_tetelek_naplo
+        WHERE TetelId = @p0 AND Ido = @p1
+      ) THEN 1 ELSE 0 END AS isDuplicate
+
+      `,
+      [tetelId, ido],
+    );
+
+    return rows[0]?.isDuplicate === 1;
   }
 
   async getFreeTasks(): Promise<Array<Record<string, unknown>>> {

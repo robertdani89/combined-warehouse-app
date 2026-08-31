@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useApi } from '../context/api';
-import { TaskRecord, TaskItem, ReportTask, ReportItem } from '../types/task';
+import { TaskRecord, TaskItem, ReportItem } from '../types/task';
 import { LoginSession } from '../types/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppTheme } from '../theme/theme';
@@ -28,6 +28,7 @@ interface TaskDetailScreenProps {
 }
 
 type InitialProgress = Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string }>;
+type PersistedProgress = Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string; ido?: string }>;
 
 function getCurrentTimeString(): string {
   const now = new Date();
@@ -44,7 +45,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
   const { colors } = useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getTasks, getTaskItems, reportTasks, reportItem } = useApi();
+  const { getTasks, getTaskItems, reportItem } = useApi();
 
   const isFocused = useIsFocused();
 
@@ -58,6 +59,10 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
   const taskId = useMemo(() => (id ? parseInt(id, 10) : NaN), [id]);
 
   const blinkAnim = useRef(new Animated.Value(1)).current;
+  // Tracks which item states were already sent to the backend, so re-saving unchanged items (merged in from progress) doesn't re-report them
+  const lastReportedRef = useRef<InitialProgress>({});
+  // Tracks the actual moment each item was completed, so a later auto-report doesn't overwrite it with the report time
+  const itemTimestampsRef = useRef<Record<number, string>>({});
 
   const dynamicStyles = StyleSheet.create({
     container: {
@@ -118,9 +123,19 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
       // Load persisted progress from local storage
       try {
         const saved = await AsyncStorage.getItem(`task_progress_${taskId}`);
-        setInitialProgress(saved ? (JSON.parse(saved) as Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string }>) : {});
+        const parsed = saved ? (JSON.parse(saved) as PersistedProgress) : {};
+        const withoutIdo: InitialProgress = Object.fromEntries(
+          Object.entries(parsed).map(([itemIdStr, info]) => [itemIdStr, { allapot: info.allapot, mennyiseg: info.mennyiseg, megjegyzes: info.megjegyzes }])
+        );
+        setInitialProgress(withoutIdo);
+        lastReportedRef.current = withoutIdo;
+        itemTimestampsRef.current = Object.fromEntries(
+          Object.entries(parsed).filter(([, info]) => info.ido).map(([itemIdStr, info]) => [itemIdStr, info.ido as string])
+        );
       } catch {
         setInitialProgress({});
+        lastReportedRef.current = {};
+        itemTimestampsRef.current = {};
       }
 
       // Fetch task items
@@ -170,16 +185,45 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
       updatedItems: Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string }>
     ) => {
       if (!task) return;
-      // Persist locally
-      AsyncStorage.setItem(`task_progress_${taskId}`, JSON.stringify(updatedItems)).catch(() => { });
-      // Silently report each changed item via PUT report-item — ignore all errors
-      if (Object.keys(updatedItems).length === 0) return;
+
+      // Only report items whose state actually changed since the last report — updatedItems
+      // is the full merged progress, so re-sending everything would duplicate already-reported items
+      const changedEntries = Object.entries(updatedItems).filter(([itemIdStr, info]) => {
+        const prev = lastReportedRef.current[Number(itemIdStr)];
+        return (
+          !prev ||
+          prev.allapot !== info.allapot ||
+          prev.mennyiseg !== info.mennyiseg ||
+          prev.megjegyzes !== info.megjegyzes
+        );
+      });
+
+      // Stamp changed items with the moment they were actually completed, so a later
+      // auto-report can reuse it instead of overwriting it with the report time
+      const now = getCurrentTimeString();
+      for (const [itemIdStr] of changedEntries) {
+        itemTimestampsRef.current[Number(itemIdStr)] = now;
+      }
+
+      // Persist locally, including each item's completion timestamp
+      const toPersist: PersistedProgress = Object.fromEntries(
+        Object.entries(updatedItems).map(([itemIdStr, info]) => [
+          itemIdStr,
+          { ...info, ido: itemTimestampsRef.current[Number(itemIdStr)] ?? now },
+        ])
+      );
+      AsyncStorage.setItem(`task_progress_${taskId}`, JSON.stringify(toPersist)).catch(() => { });
+
+      if (changedEntries.length === 0) return;
+
+      lastReportedRef.current = { ...lastReportedRef.current, ...Object.fromEntries(changedEntries) };
+
       try {
-        const time = getCurrentTimeString();
         await Promise.all(
-          Object.entries(updatedItems).map(([itemIdStr, info]) => {
+          changedEntries.map(([itemIdStr, info]) => {
             const itemId = parseInt(itemIdStr, 10);
             const orig = items.find((i) => i._id === itemId);
+            const time = itemTimestampsRef.current[itemId] ?? now;
             const item: ReportItem = {
               _id: itemId,
               tetel_id: itemId,
