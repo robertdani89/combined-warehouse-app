@@ -6,14 +6,6 @@
     "version": "1.0.0",
     "plugins": [
       "expo-router",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#0F766E",
-          "androidMode": "default"
-        }
-      ],
       "./plugins/withNetworkSecurityConfig",
       "./plugins/withGoogleServices"
     ],

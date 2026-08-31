@@ -21,6 +21,20 @@ type TokenPayload = {
   exp: number;
 };
 
+// atob only maps bytes 1:1 to char codes, so multi-byte UTF-8 sequences (e.g. accented letters) need re-decoding
+function decodeBase64UrlUtf8(base64Url: string): string {
+  let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  const padLength = base64.length % 4;
+  if (padLength) {
+    base64 += '='.repeat(4 - padLength);
+  }
+  const binary = atob(base64);
+  const percentEncoded = Array.prototype.map
+    .call(binary, (c: string) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+    .join('');
+  return decodeURIComponent(percentEncoded);
+}
+
 type ApiContextValue = {
   backendUrl: string;
   login: (user: string, pass: string) => Promise<LoginSession>;
@@ -257,7 +271,7 @@ export function ApiProvider({ children }: { children: ReactNode }) {
   const decodeToken = useCallback(
     (token: string): TokenPayload | null => {
       try {
-        const decoded = JSON.parse(atob(token.split('.')[1])) as TokenPayload;
+        const decoded = JSON.parse(decodeBase64UrlUtf8(token.split('.')[1])) as TokenPayload;
         return decoded;
       } catch {
         return null;

@@ -22,7 +22,7 @@ type LoginScreenProps = {
 
 export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScreenProps) {
   const { colors } = useAppTheme();
-  const { login, saveFirebaseToken } = useApi();
+  const { login } = useApi();
   const router = useRouter();
 
   const passwordRef = useRef<TextInput>(null);
@@ -72,18 +72,18 @@ export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScr
       await onLoginSuccess(session);
 
       // Register for push notifications and send token to backend if available
-      try {
-        const { getDevicePushToken } = await import('../utils/push');
-        const token = await getDevicePushToken();
+      // try {
+      //   const { getDevicePushToken } = await import('../utils/push');
+      //   const token = await getDevicePushToken();
 
-        if (token && session.userName) {
-          await saveFirebaseToken(session.userName, token);
-        } else {
-          console.warn('Push token not available or session userName missing');
-        }
-      } catch (e) {
-        console.error('Failed to register for push notifications', e);
-      }
+      //   if (token && session.userName) {
+      //     await saveFirebaseToken(session.userName, token);
+      //   } else {
+      //     console.warn('Push token not available or session userName missing');
+      //   }
+      // } catch (e) {
+      //   console.error('Failed to register for push notifications', e);
+      // }
 
       setPassword('');
       setPasswordTouched(false);
