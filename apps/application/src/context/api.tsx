@@ -71,12 +71,14 @@ function normalizeBackendUrl(rawValue: string | undefined): string {
   return value.replace(/\/+$/, '');
 }
 
-const PRIMARY_URL = normalizeBackendUrl(process.env.EXPO_PUBLIC_BACKEND_URL);
-if (!PRIMARY_URL) {
-  throw new Error('EXPO_PUBLIC_BACKEND_URL is missing. Set it in .env.');
-}
+const BACKEND_URLS = (process.env.EXPO_PUBLIC_BACKEND_URLS ?? '')
+  .split(',')
+  .map(normalizeBackendUrl)
+  .filter((url: string) => url.length > 0);
 
-const SECONDARY_URL = normalizeBackendUrl(process.env.EXPO_PUBLIC_BACKEND_SECONDARY_URL);
+if (BACKEND_URLS.length === 0) {
+  throw new Error('EXPO_PUBLIC_BACKEND_URLS is missing. Set it in .env.');
+}
 
 let activeBackendUrl: string | null = null;
 let ongoingCheckPromise: Promise<string> | null = null;
@@ -108,30 +110,19 @@ async function pingUrl(url: string, timeoutMs = 2500): Promise<boolean> {
 }
 
 async function discoverActiveUrl(): Promise<string> {
-  if (!SECONDARY_URL) {
-    return PRIMARY_URL;
+  for (const url of BACKEND_URLS) {
+    try {
+      if (await pingUrl(url)) {
+        console.log(`Backend URL is active: ${url}`);
+        return url;
+      }
+    } catch {
+      console.error(`Error during backend URL discovery for ${url}`);
+    }
   }
 
-  try {
-    const [primaryOk, secondaryOk] = await Promise.all([
-      pingUrl(PRIMARY_URL),
-      pingUrl(SECONDARY_URL),
-    ]);
-
-    if (primaryOk) {
-      console.log(`Primary backend URL is active: ${PRIMARY_URL}`);
-      return PRIMARY_URL;
-    }
-    if (secondaryOk) {
-      console.log(`Secondary backend URL is active: ${SECONDARY_URL}`);
-      return SECONDARY_URL;
-    }
-  } catch {
-    console.error('Error during backend URL discovery');
-  }
-
-  console.warn('Both backend URLs are unreachable, defaulting to primary URL');
-  return PRIMARY_URL;
+  console.warn('All backend URLs are unreachable, defaulting to first URL');
+  return BACKEND_URLS[0];
 }
 
 async function getActiveUrl(forceRecheck = false): Promise<string> {
@@ -151,10 +142,10 @@ async function getActiveUrl(forceRecheck = false): Promise<string> {
       return url;
     })
     .catch(() => {
-      activeBackendUrl = PRIMARY_URL;
-      notifyListeners(PRIMARY_URL);
+      activeBackendUrl = BACKEND_URLS[0];
+      notifyListeners(BACKEND_URLS[0]);
       ongoingCheckPromise = null;
-      return PRIMARY_URL;
+      return BACKEND_URLS[0];
     });
 
   return ongoingCheckPromise;
@@ -223,7 +214,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function ApiProvider({ children }: { children: ReactNode }) {
-  const [backendUrl, setBackendUrl] = useState<string>(activeBackendUrl || PRIMARY_URL);
+  const [backendUrl, setBackendUrl] = useState<string>(activeBackendUrl || BACKEND_URLS[0]);
 
   useEffect(() => {
     listeners.add(setBackendUrl);

@@ -8,22 +8,19 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_BACKEND_URL": "http://192.168.0.182:3000",
-        "EXPO_PUBLIC_BACKEND_SECONDARY_URL": "http://192.168.100.202:3000"
+        "EXPO_PUBLIC_BACKEND_URLS": "http://192.168.100.202:3000,http://villumennagyker.hu:8080/vill-api,http://192.168.0.182:3000"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_BACKEND_URL": "http://192.168.0.182:3000",
-        "EXPO_PUBLIC_BACKEND_SECONDARY_URL": "http://192.168.100.202:3000"
+        "EXPO_PUBLIC_BACKEND_URLS": "http://192.168.100.202:3000,http://villumennagyker.hu:8080/vill-api,http://192.168.0.182:3000"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_BACKEND_URL": "http://192.168.0.182:3000",
-        "EXPO_PUBLIC_BACKEND_SECONDARY_URL": "http://192.168.100.202:3000"
+        "EXPO_PUBLIC_BACKEND_URLS": "http://192.168.100.202:3000,http://villumennagyker.hu:8080/vill-api,http://192.168.0.182:3000"
       }
     }
   },
