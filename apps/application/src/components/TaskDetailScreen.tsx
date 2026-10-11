@@ -28,7 +28,10 @@ interface TaskDetailScreenProps {
 }
 
 type InitialProgress = Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string }>;
-type PersistedProgress = Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string; ido?: string }>;
+// `synced` marks whether this item's finding was actually confirmed sent to the backend.
+// Items saved locally but not yet synced (e.g. because the network dropped while roaming
+// between routers) must stay eligible for resend — they must never be treated as reported.
+type PersistedProgress = Record<number, { allapot: number; mennyiseg?: number; megjegyzes?: string; ido?: string; synced?: boolean }>;
 
 function getCurrentTimeString(): string {
   const now = new Date();
@@ -59,10 +62,17 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
   const taskId = useMemo(() => (id ? parseInt(id, 10) : NaN), [id]);
 
   const blinkAnim = useRef(new Animated.Value(1)).current;
-  // Tracks which item states were already sent to the backend, so re-saving unchanged items (merged in from progress) doesn't re-report them
+  // Tracks which item states were CONFIRMED sent to the backend (synced === true), so
+  // re-saving unchanged items (merged in from progress) doesn't re-report them. Items that
+  // failed to send (e.g. a dropped connection while roaming between routers) must never
+  // end up in here, otherwise they'd be silently dropped instead of retried.
   const lastReportedRef = useRef<InitialProgress>({});
   // Tracks the actual moment each item was completed, so a later auto-report doesn't overwrite it with the report time
   const itemTimestampsRef = useRef<Record<number, string>>({});
+  // Full locally-persisted progress (including each item's synced flag), kept in sync with
+  // AsyncStorage so partial updates (e.g. marking a single item as synced) never clobber the
+  // rest of the saved findings.
+  const persistedProgressRef = useRef<PersistedProgress>({});
 
   const dynamicStyles = StyleSheet.create({
     container: {
@@ -95,6 +105,78 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
     },
   });
 
+  // Updates the synced flag for the given items in the in-memory + persisted progress map,
+  // without touching any other item's saved data.
+  const persistSyncedFlags = useCallback(
+    async (itemIds: number[], synced: boolean) => {
+      if (itemIds.length === 0) return;
+      for (const itemId of itemIds) {
+        const existing = persistedProgressRef.current[itemId];
+        if (existing) {
+          persistedProgressRef.current[itemId] = { ...existing, synced };
+        }
+      }
+      try {
+        await AsyncStorage.setItem(`task_progress_${taskId}`, JSON.stringify(persistedProgressRef.current));
+      } catch {
+        // Ignore persistence errors; the next save/resync attempt will retry
+      }
+    },
+    [taskId]
+  );
+
+  // Sends the given entries to the backend and marks only the ones that actually succeed as
+  // synced. Entries that fail (e.g. the connection drops while roaming between routers) stay
+  // unsynced locally so they get resent later instead of being silently discarded.
+  const reportEntries = useCallback(
+    async (
+      entries: [string, { allapot: number; mennyiseg?: number; megjegyzes?: string }][],
+      itemsList: TaskItem[]
+    ) => {
+      if (entries.length === 0) return;
+
+      const now = getCurrentTimeString();
+      const results = await Promise.allSettled(
+        entries.map(([itemIdStr, info]) => {
+          const itemId = parseInt(itemIdStr, 10);
+          const orig = itemsList.find((i) => i._id === itemId);
+          const time = itemTimestampsRef.current[itemId] ?? now;
+          const item: ReportItem = {
+            _id: itemId,
+            tetel_id: itemId,
+            tetel_etk: orig?.Etk || '',
+            tetel_tarolohely: orig?.Tarolo || '',
+            naplo: [{
+              naplo_allapot: info.allapot,
+              naplo_mennyiseg: info.mennyiseg,
+              naplo_megjegyzes: info.megjegyzes || '',
+              naplo_ido: time,
+            }],
+          };
+          return reportItem(item, time);
+        })
+      );
+
+      // A fulfilled promise only means the HTTP call didn't throw — the backend can still
+      // respond 200 OK with `success: false` (e.g. a validation rejection), so that resolved
+      // value must be checked too, otherwise a rejected item would wrongly be marked synced.
+      const succeededIds: number[] = [];
+      entries.forEach(([itemIdStr, info], idx) => {
+        const result = results[idx];
+        if (result.status === 'fulfilled' && result.value === true) {
+          const itemId = parseInt(itemIdStr, 10);
+          lastReportedRef.current = { ...lastReportedRef.current, [itemId]: info };
+          succeededIds.push(itemId);
+        }
+      });
+
+      if (succeededIds.length > 0) {
+        await persistSyncedFlags(succeededIds, true);
+      }
+    },
+    [reportItem, persistSyncedFlags]
+  );
+
   const fetchTaskAndItems = useCallback(async () => {
     if (isNaN(taskId)) {
       setError('Érvénytelen feladat azonosító');
@@ -121,14 +203,21 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
       setTask(matched);
 
       // Load persisted progress from local storage
+      let unsyncedEntries: [string, { allapot: number; mennyiseg?: number; megjegyzes?: string }][] = [];
       try {
         const saved = await AsyncStorage.getItem(`task_progress_${taskId}`);
         const parsed = saved ? (JSON.parse(saved) as PersistedProgress) : {};
+        persistedProgressRef.current = parsed;
         const withoutIdo: InitialProgress = Object.fromEntries(
           Object.entries(parsed).map(([itemIdStr, info]) => [itemIdStr, { allapot: info.allapot, mennyiseg: info.mennyiseg, megjegyzes: info.megjegyzes }])
         );
         setInitialProgress(withoutIdo);
-        lastReportedRef.current = withoutIdo;
+        // Only items confirmed synced count as "already reported" — anything else (including
+        // findings saved before a connectivity drop) must stay eligible for resend below.
+        lastReportedRef.current = Object.fromEntries(
+          Object.entries(withoutIdo).filter(([itemIdStr]) => parsed[Number(itemIdStr)]?.synced)
+        );
+        unsyncedEntries = Object.entries(withoutIdo).filter(([itemIdStr]) => !parsed[Number(itemIdStr)]?.synced);
         itemTimestampsRef.current = Object.fromEntries(
           Object.entries(parsed).filter(([, info]) => info.ido).map(([itemIdStr, info]) => [itemIdStr, info.ido as string])
         );
@@ -136,17 +225,24 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
         setInitialProgress({});
         lastReportedRef.current = {};
         itemTimestampsRef.current = {};
+        persistedProgressRef.current = {};
       }
 
       // Fetch task items
       const taskItems = await getTaskItems(taskId);
       setItems([...taskItems].sort((a, b) => a._id - b._id));
+
+      // Retry any findings that were saved locally but never confirmed sent to the backend
+      // (e.g. because the device was mid-handover between routers when the report failed).
+      if (unsyncedEntries.length > 0) {
+        reportEntries(unsyncedEntries, taskItems).catch(() => { });
+      }
     } catch (err: any) {
       setError(err?.message || 'Hiba történt a feladat letöltése közben.');
     } finally {
       setLoading(false);
     }
-  }, [taskId, session.userName, getTasks, getTaskItems]);
+  }, [taskId, session.userName, getTasks, getTaskItems, reportEntries]);
 
   useEffect(() => {
     fetchTaskAndItems();
@@ -197,6 +293,7 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
           prev.megjegyzes !== info.megjegyzes
         );
       });
+      const changedIds = new Set(changedEntries.map(([itemIdStr]) => Number(itemIdStr)));
 
       // Stamp changed items with the moment they were actually completed, so a later
       // auto-report can reuse it instead of overwriting it with the report time
@@ -205,45 +302,27 @@ export default function TaskDetailScreen({ session }: TaskDetailScreenProps) {
         itemTimestampsRef.current[Number(itemIdStr)] = now;
       }
 
-      // Persist locally, including each item's completion timestamp
-      const toPersist: PersistedProgress = Object.fromEntries(
-        Object.entries(updatedItems).map(([itemIdStr, info]) => [
-          itemIdStr,
-          { ...info, ido: itemTimestampsRef.current[Number(itemIdStr)] ?? now },
-        ])
+      // Persist locally first, including each item's completion timestamp. Changed items are
+      // marked unsynced until the backend actually confirms them below, so a reload in between
+      // (e.g. triggered by a network/router switch) can never mistake them for already reported.
+      // Unchanged items keep whatever synced flag they already had.
+      persistedProgressRef.current = Object.fromEntries(
+        Object.entries(updatedItems).map(([itemIdStr, info]) => {
+          const itemId = Number(itemIdStr);
+          const synced = changedIds.has(itemId) ? false : (persistedProgressRef.current[itemId]?.synced ?? false);
+          return [itemIdStr, { ...info, ido: itemTimestampsRef.current[itemId] ?? now, synced }];
+        })
       );
-      AsyncStorage.setItem(`task_progress_${taskId}`, JSON.stringify(toPersist)).catch(() => { });
+      AsyncStorage.setItem(`task_progress_${taskId}`, JSON.stringify(persistedProgressRef.current)).catch(() => { });
 
       if (changedEntries.length === 0) return;
 
-      lastReportedRef.current = { ...lastReportedRef.current, ...Object.fromEntries(changedEntries) };
-
-      try {
-        await Promise.all(
-          changedEntries.map(([itemIdStr, info]) => {
-            const itemId = parseInt(itemIdStr, 10);
-            const orig = items.find((i) => i._id === itemId);
-            const time = itemTimestampsRef.current[itemId] ?? now;
-            const item: ReportItem = {
-              _id: itemId,
-              tetel_id: itemId,
-              tetel_etk: orig?.Etk || '',
-              tetel_tarolohely: orig?.Tarolo || '',
-              naplo: [{
-                naplo_allapot: info.allapot,
-                naplo_mennyiseg: info.mennyiseg,
-                naplo_megjegyzes: info.megjegyzes || '',
-                naplo_ido: time,
-              }],
-            };
-            return reportItem(item, time);
-          })
-        );
-      } catch {
-        // Silently ignore server errors for auto-save
-      }
+      await reportEntries(
+        changedEntries as [string, { allapot: number; mennyiseg?: number; megjegyzes?: string }][],
+        items
+      );
     },
-    [task, taskId, items, reportItem]
+    [task, taskId, items, reportEntries]
   );
 
   if (loading && !task) {

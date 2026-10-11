@@ -46,7 +46,7 @@ export class TasksService {
       [hivatkozas], ISNULL(comment, '') comment, fel.megnevezes
       FROM [Raktaros_feladatok] fel
       WHERE raktaros = @p0 AND datum = CONVERT(date, SYSDATETIME())
-      ORDER BY CASE WHEN allapot >= 4 THEN 1 ELSE 0 END DESC, kelt ASC;
+      ORDER BY CASE WHEN allapot >= 4 THEN 0 ELSE 1 END DESC, kelt ASC;
     `;
 
     const tasks = await this.safeQuery<TaskRecord>('getTasks.tasks', sql, [userName]);

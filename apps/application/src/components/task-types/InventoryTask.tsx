@@ -16,6 +16,12 @@ import InventorySearch from '../InventorySearch';
 
 type CalculationMode = 'calc' | 'weight';
 
+// Formats a quantity the same way the calculator does, so a previously found quantity looks
+// identical whether it was just calculated or reloaded from saved progress.
+function formatQuantity(value: number): string {
+  return Number(value).toFixed(2).replace(/\.00$/, '');
+}
+
 export default function InventoryTask({
   task,
   items,
@@ -233,14 +239,14 @@ export default function InventoryTask({
 
   const triggerOpenItem = (item: TaskItem) => {
     setSelectedItem(item);
-    const existing = progress[item._id] || {
-      allapot: item.allapot ?? 0,
-      mennyiseg: item.tkeszlet ?? item.Mennyiseg,
-      megjegyzes: item.megj || '',
-    };
 
-    setFormula('');
-    setCalculatedRes('0');
+    // If this item was already counted, show the previously found quantity instead of
+    // resetting the calculator to 0 — the old app kept it visible so users could see
+    // (and continue from) what they had already entered.
+    const existing = progress[item._id];
+    const previousQty = existing?.mennyiseg !== undefined ? formatQuantity(existing.mennyiseg) : '';
+    setFormula(previousQty);
+    setCalculatedRes(previousQty || '0');
 
     // Reset weights
     setSampleQuantity('1');
@@ -280,7 +286,7 @@ export default function InventoryTask({
       // eslint-disable-next-line no-eval
       const res = eval(sanitized);
       if (res !== undefined && !isNaN(res)) {
-        setCalculatedRes(Number(res).toFixed(2).replace(/\.00$/, ''));
+        setCalculatedRes(formatQuantity(res));
       }
     } catch {
       // Ignore evaluation errors while typing
