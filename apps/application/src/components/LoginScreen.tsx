@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { useApi } from '../context/api';
 import { LoginSession } from '../types/auth';
 import { useAppTheme } from '../theme/theme';
+import { getDevicePushToken } from '../utils/push';
 
 type LoginScreenProps = {
   onLoginSuccess: (session: LoginSession) => Promise<void>;
@@ -79,7 +80,6 @@ export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScr
 
       // Register for push notifications and send token to backend if available
       try {
-        const { getDevicePushToken } = await import('../utils/push');
         const token = await getDevicePushToken();
 
         if (token && session.userName) {

@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ApiProvider, useApi } from '../src/context/api';
 import { AuthProvider, useAuth } from '../src/context/auth';
 import { ErrorLogProvider, useErrorLog } from '../src/context/errorLog';
+import { getDevicePushToken } from '../src/utils/push';
 
 function AuthGuardedLayout() {
   const { session, isBooting } = useAuth();
@@ -28,7 +29,6 @@ function AuthGuardedLayout() {
 
     (async () => {
       try {
-        const { getDevicePushToken } = await import('../src/utils/push');
         const token = await getDevicePushToken();
         if (token) {
           await saveFirebaseToken(session.userName!, token);
