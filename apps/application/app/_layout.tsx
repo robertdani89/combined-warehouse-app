@@ -13,13 +13,31 @@ function AuthGuardedLayout() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const statusBarStyle = colorScheme === 'dark' ? 'light' : 'dark';
-  const { syncErrorLogs } = useApi();
+  const { syncErrorLogs, saveFirebaseToken } = useApi();
   const { registerSyncFn } = useErrorLog();
 
   // Wire the API sync function into the error log context once available
   useEffect(() => {
     registerSyncFn(syncErrorLogs);
   }, [registerSyncFn, syncErrorLogs]);
+
+  // Re-register the push token on every app launch with an existing session,
+  // since the underlying FCM token can rotate without the user logging in again.
+  useEffect(() => {
+    if (isBooting || !session?.userName) return;
+
+    (async () => {
+      try {
+        const { getDevicePushToken } = await import('../src/utils/push');
+        const token = await getDevicePushToken();
+        if (token) {
+          await saveFirebaseToken(session.userName!, token);
+        }
+      } catch (e) {
+        console.error('Failed to refresh push token', e);
+      }
+    })();
+  }, [isBooting, session?.userName, saveFirebaseToken]);
 
   useEffect(() => {
     if (isBooting) return;

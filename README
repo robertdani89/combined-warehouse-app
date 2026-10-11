@@ -4,7 +4,9 @@ npm run prebuild
 
 cd android
 ./gradlew assembleRelease
-
+cd app/build/outputs/apk/release/
+adb install app-release.apk
+npm run prebuild && cd android && ./gradlew assembleRelease && cd app/build/outputs/apk/release/ && adb install app-release.apk && cd ../../../../../..
 ### logs
 
 adb logcat --pid=$(adb shell pidof com.stygianlamp.villumenraktar)

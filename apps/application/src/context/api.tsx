@@ -37,6 +37,10 @@ function decodeBase64UrlUtf8(base64Url: string): string {
 
 type ApiContextValue = {
   backendUrl: string;
+  isBackendReachable: boolean;
+  isCheckingConnection: boolean;
+  connectionError: string | null;
+  checkConnection: () => Promise<boolean>;
   login: (user: string, pass: string) => Promise<LoginSession>;
   getTasks: (userName: string) => Promise<TaskRecord[]>;
   getTaskItems: (taskId: number) => Promise<TaskItem[]>;
@@ -82,6 +86,8 @@ if (BACKEND_URLS.length === 0) {
 
 let activeBackendUrl: string | null = null;
 let ongoingCheckPromise: Promise<string> | null = null;
+let lastReachable = false;
+let lastConnectionError: string | null = null;
 
 type ActiveUrlListener = (url: string) => void;
 const listeners = new Set<ActiveUrlListener>();
@@ -92,37 +98,56 @@ function notifyListeners(url: string) {
   }
 }
 
-async function pingUrl(url: string, timeoutMs = 2500): Promise<boolean> {
+type ConnectionListener = (reachable: boolean, error: string | null) => void;
+const connectionListeners = new Set<ConnectionListener>();
+
+function notifyConnectionListeners(reachable: boolean, error: string | null) {
+  for (const listener of connectionListeners) {
+    listener(reachable, error);
+  }
+}
+
+async function pingUrl(url: string, timeoutMs = 2500): Promise<{ ok: boolean; error: string | null }> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(`${url}/`, { signal: controller.signal });
     clearTimeout(id);
-    return res.ok;
+    return { ok: res.ok, error: res.ok ? null : `HTTP ${res.status}` };
   } catch (error: any) {
-    if (!controller.signal.aborted) {
-      console.error(`Error pinging ${url}`);
-      console.error(JSON.stringify(error, null, 2) || error.message || error);
-    }
     clearTimeout(id);
-    return false;
+    if (controller.signal.aborted) {
+      return { ok: false, error: 'Időtúllépés a szerver elérésekor.' };
+    }
+    const message = error?.message || String(error);
+    console.error(`Error pinging ${url}: ${message}`);
+    return { ok: false, error: message };
   }
 }
 
-async function discoverActiveUrl(): Promise<string> {
+async function discoverActiveUrl(): Promise<{ url: string; reachable: boolean; error: string | null }> {
+  const failures: { url: string; error: string | null }[] = [];
+
   for (const url of BACKEND_URLS) {
     try {
-      if (await pingUrl(url)) {
+      const result = await pingUrl(url);
+      if (result.ok) {
         console.log(`Backend URL is active: ${url}`);
-        return url;
+        return { url, reachable: true, error: null };
       }
-    } catch {
+      failures.push({ url, error: result.error });
+    } catch (error: any) {
+      const message = error?.message || String(error);
       console.error(`Error during backend URL discovery for ${url}`);
+      failures.push({ url, error: message });
     }
   }
 
   console.warn('All backend URLs are unreachable, defaulting to first URL');
-  return BACKEND_URLS[0];
+  const combinedError = failures
+    .map((failure) => `${failure.url}: ${failure.error ?? 'ismeretlen hiba'}`)
+    .join('\n');
+  return { url: BACKEND_URLS[0], reachable: false, error: combinedError || 'A szerver nem elérhető.' };
 }
 
 async function getActiveUrl(forceRecheck = false): Promise<string> {
@@ -135,15 +160,21 @@ async function getActiveUrl(forceRecheck = false): Promise<string> {
   }
 
   ongoingCheckPromise = discoverActiveUrl()
-    .then((url) => {
+    .then(({ url, reachable, error }) => {
       activeBackendUrl = url;
+      lastReachable = reachable;
+      lastConnectionError = error;
       notifyListeners(url);
+      notifyConnectionListeners(reachable, error);
       ongoingCheckPromise = null;
       return url;
     })
-    .catch(() => {
+    .catch((error: any) => {
       activeBackendUrl = BACKEND_URLS[0];
+      lastReachable = false;
+      lastConnectionError = error?.message || 'A szerver nem elérhető.';
       notifyListeners(BACKEND_URLS[0]);
+      notifyConnectionListeners(false, lastConnectionError);
       ongoingCheckPromise = null;
       return BACKEND_URLS[0];
     });
@@ -215,15 +246,36 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function ApiProvider({ children }: { children: ReactNode }) {
   const [backendUrl, setBackendUrl] = useState<string>(activeBackendUrl || BACKEND_URLS[0]);
+  const [isBackendReachable, setIsBackendReachable] = useState<boolean>(lastReachable);
+  const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(!activeBackendUrl);
+  const [connectionError, setConnectionError] = useState<string | null>(lastConnectionError);
 
   useEffect(() => {
     listeners.add(setBackendUrl);
+
+    const connectionListener: ConnectionListener = (reachable, error) => {
+      setIsBackendReachable(reachable);
+      setConnectionError(error);
+      setIsCheckingConnection(false);
+    };
+    connectionListeners.add(connectionListener);
+
     if (!activeBackendUrl) {
+      setIsCheckingConnection(true);
       getActiveUrl().catch(() => { });
     }
+
     return () => {
       listeners.delete(setBackendUrl);
+      connectionListeners.delete(connectionListener);
     };
+  }, []);
+
+  const checkConnection = useCallback(async (): Promise<boolean> => {
+    setIsCheckingConnection(true);
+    setConnectionError(null);
+    await getActiveUrl(true);
+    return lastReachable;
   }, []);
 
   const login = useCallback(
@@ -445,6 +497,10 @@ export function ApiProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ApiContextValue>(
     () => ({
       backendUrl,
+      isBackendReachable,
+      isCheckingConnection,
+      connectionError,
+      checkConnection,
       login,
       getTasks,
       getTaskItems,
@@ -461,7 +517,26 @@ export function ApiProvider({ children }: { children: ReactNode }) {
       requestTasks,
       syncErrorLogs,
     }),
-    [backendUrl, getTasks, getTaskItems, reportTasks, reportItem, getRoute, getUzenetek, postUzenet, login, hasVegezIdo, saveVegzes, getFreeTasks, requestTasks, syncErrorLogs],
+    [
+      backendUrl,
+      isBackendReachable,
+      isCheckingConnection,
+      connectionError,
+      checkConnection,
+      getTasks,
+      getTaskItems,
+      reportTasks,
+      reportItem,
+      getRoute,
+      getUzenetek,
+      postUzenet,
+      login,
+      hasVegezIdo,
+      saveVegzes,
+      getFreeTasks,
+      requestTasks,
+      syncErrorLogs,
+    ],
   );
 
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;

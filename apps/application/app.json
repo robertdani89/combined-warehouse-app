@@ -7,7 +7,14 @@
     "plugins": [
       "expo-router",
       "./plugins/withNetworkSecurityConfig",
-      "./plugins/withGoogleServices"
+      "./plugins/withGoogleServices",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#064E3B"
+        }
+      ]
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -39,7 +46,8 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.stygianlamp.villumenraktar",
       "permissions": [
-        "android.permission.INTERNET"
+        "android.permission.INTERNET",
+        "android.permission.POST_NOTIFICATIONS"
       ],
       "versionCode": 1
     },

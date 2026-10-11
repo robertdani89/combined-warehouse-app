@@ -4,9 +4,14 @@ const fs = require('fs');
 
 const NETWORK_SECURITY_CONFIG_XML = `<?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- The app only ever talks to our own backend over plain HTTP (no public internet
+         traffic), so cleartext is allowed for all domains by default. The explicit
+         domain-config entries below just document the known hosts. -->
+    <base-config cleartextTrafficPermitted="true" />
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">192.168.0.182</domain>
         <domain includeSubdomains="true">192.168.100.202</domain>
+        <domain includeSubdomains="true">villumennagyker.hu</domain>
     </domain-config>
 </network-security-config>
 `;

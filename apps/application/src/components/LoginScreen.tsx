@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useApi } from '../context/api';
 import { LoginSession } from '../types/auth';
@@ -22,17 +23,22 @@ type LoginScreenProps = {
 
 export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScreenProps) {
   const { colors } = useAppTheme();
-  const { login } = useApi();
+  const { login, saveFirebaseToken, isBackendReachable, isCheckingConnection, connectionError, checkConnection } = useApi();
   const router = useRouter();
 
   const passwordRef = useRef<TextInput>(null);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [usernameTouched, setUsernameTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+
+  useEffect(() => {
+    checkConnection().catch(() => { });
+  }, [checkConnection]);
 
   const trimmedUser = username.trim();
   const trimmedPass = password.trim();
@@ -72,18 +78,18 @@ export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScr
       await onLoginSuccess(session);
 
       // Register for push notifications and send token to backend if available
-      // try {
-      //   const { getDevicePushToken } = await import('../utils/push');
-      //   const token = await getDevicePushToken();
+      try {
+        const { getDevicePushToken } = await import('../utils/push');
+        const token = await getDevicePushToken();
 
-      //   if (token && session.userName) {
-      //     await saveFirebaseToken(session.userName, token);
-      //   } else {
-      //     console.warn('Push token not available or session userName missing');
-      //   }
-      // } catch (e) {
-      //   console.error('Failed to register for push notifications', e);
-      // }
+        if (token && session.userName) {
+          await saveFirebaseToken(session.userName, token);
+        } else {
+          console.warn('Push token not available or session userName missing');
+        }
+      } catch (e) {
+        console.error('Failed to register for push notifications', e);
+      }
 
       setPassword('');
       setPasswordTouched(false);
@@ -91,7 +97,8 @@ export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScr
     } catch (error: any) {
       console.error('Login failed', error.message || error);
       console.error('Login failed', error.stack || 'no stack');
-      setLoginError('Sikertelen bejelentkezés. Ellenőrizd a felhasználónevet és jelszót.');
+      const detail = error?.message ? ` (${error.message})` : '';
+      setLoginError(`Sikertelen bejelentkezés. Ellenőrizd a felhasználónevet és jelszót.${detail}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -142,7 +149,27 @@ export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScr
     primaryButtonText: {
       color: colors.textOnPrimary,
     },
+    passwordInput: {
+      flex: 1,
+      borderWidth: 0,
+      backgroundColor: 'transparent',
+    },
+    passwordWrapper: {
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    connectionText: {
+      color: colors.textMuted,
+    },
+    retryButton: {
+      backgroundColor: colors.primary,
+    },
+    retryButtonText: {
+      color: colors.textOnPrimary,
+    },
   });
+
+  const showLoginForm = !isCheckingConnection && isBackendReachable;
 
   return (
     <KeyboardAvoidingView
@@ -154,79 +181,127 @@ export default function LoginScreen({ onLoginSuccess, onResetAllData }: LoginScr
         <Text style={[styles.subtitle, dynamicStyles.subtitle]}>Jelentkezz be</Text>
       </View>
 
-      <View style={[styles.card, dynamicStyles.card]}>
-        <Text style={[styles.label, dynamicStyles.label]}>Felhasználónév</Text>
-        <TextInput
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!isSubmitting}
-          onBlur={() => setUsernameTouched(true)}
-          onChangeText={(value) => {
-            setUsername(value);
-            setLoginError(null);
-          }}
-          placeholder="Felhasználónév"
-          placeholderTextColor={colors.textSecondary}
-          returnKeyType="next"
-          onSubmitEditing={() => passwordRef.current?.focus()}
-          blurOnSubmit={false}
-          style={[
-            styles.input,
-            dynamicStyles.input,
-            usernameTouched && isUsernameMissing ? dynamicStyles.inputError : undefined,
-          ]}
-          value={username}
-        />
-        {usernameTouched && isUsernameMissing ? (
-          <Text style={[styles.errorText, dynamicStyles.errorText]}>Felhasználónév megadása kötelező.</Text>
-        ) : null}
+      {isCheckingConnection ? (
+        <View style={[styles.card, dynamicStyles.card, styles.connectionCard]}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={[styles.connectionText, dynamicStyles.connectionText]}>
+            Kapcsolódás a szerverhez...
+          </Text>
+        </View>
+      ) : !isBackendReachable ? (
+        <View style={[styles.card, dynamicStyles.card, styles.connectionCard]}>
+          <Text style={[styles.errorText, dynamicStyles.errorText]}>
+            Nem sikerült csatlakozni a szerverhez.
+          </Text>
+          {connectionError ? (
+            <Text style={[styles.connectionText, dynamicStyles.connectionText]} selectable>
+              {connectionError}
+            </Text>
+          ) : null}
+          <Pressable
+            onPress={() => checkConnection().catch(() => { })}
+            style={({ pressed }) => [
+              styles.retryButton,
+              dynamicStyles.retryButton,
+              pressed ? styles.primaryButtonPressed : undefined,
+            ]}
+          >
+            <Text style={[styles.primaryButtonText, dynamicStyles.retryButtonText]}>Újrapróbálkozás</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
-        <Text style={[styles.label, dynamicStyles.label]}>Jelszó</Text>
-        <TextInput
-          ref={passwordRef}
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!isSubmitting}
-          onBlur={() => setPasswordTouched(true)}
-          onChangeText={(value) => {
-            setPassword(value);
-            setLoginError(null);
-          }}
-          placeholder="Jelszó"
-          placeholderTextColor={colors.textSecondary}
-          returnKeyType="done"
-          onSubmitEditing={handleLogin}
-          secureTextEntry
-          style={[
-            styles.input,
-            dynamicStyles.input,
-            passwordTouched && isPasswordMissing ? dynamicStyles.inputError : undefined,
-          ]}
-          value={password}
-        />
-        {passwordTouched && isPasswordMissing ? (
-          <Text style={[styles.errorText, dynamicStyles.errorText]}>Jelszó megadása kötelező.</Text>
-        ) : null}
+      {showLoginForm ? (
+        <View style={[styles.card, dynamicStyles.card]}>
+          <Text style={[styles.label, dynamicStyles.label]}>Felhasználónév</Text>
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!isSubmitting}
+            onBlur={() => setUsernameTouched(true)}
+            onChangeText={(value) => {
+              setUsername(value);
+              setLoginError(null);
+            }}
+            placeholder="Felhasználónév"
+            placeholderTextColor={colors.textSecondary}
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            blurOnSubmit={false}
+            style={[
+              styles.input,
+              dynamicStyles.input,
+              usernameTouched && isUsernameMissing ? dynamicStyles.inputError : undefined,
+            ]}
+            value={username}
+          />
+          {usernameTouched && isUsernameMissing ? (
+            <Text style={[styles.errorText, dynamicStyles.errorText]}>Felhasználónév megadása kötelező.</Text>
+          ) : null}
 
-        {loginError ? <Text style={[styles.errorText, dynamicStyles.errorText]}>{loginError}</Text> : null}
+          <Text style={[styles.label, dynamicStyles.label]}>Jelszó</Text>
+          <View
+            style={[
+              styles.passwordWrapper,
+              dynamicStyles.passwordWrapper,
+              passwordTouched && isPasswordMissing ? dynamicStyles.inputError : undefined,
+            ]}
+          >
+            <TextInput
+              ref={passwordRef}
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!isSubmitting}
+              onBlur={() => setPasswordTouched(true)}
+              onChangeText={(value) => {
+                setPassword(value);
+                setLoginError(null);
+              }}
+              placeholder="Jelszó"
+              placeholderTextColor={colors.textSecondary}
+              returnKeyType="done"
+              onSubmitEditing={handleLogin}
+              secureTextEntry={!isPasswordVisible}
+              style={[styles.input, dynamicStyles.input, styles.passwordInput]}
+              value={password}
+            />
+            <Pressable
+              accessibilityLabel={isPasswordVisible ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'}
+              hitSlop={8}
+              onPress={() => setIsPasswordVisible((prev) => !prev)}
+              style={styles.passwordToggle}
+            >
+              <Ionicons
+                name={isPasswordVisible ? 'eye-off' : 'eye'}
+                size={22}
+                color={colors.textSecondary}
+              />
+            </Pressable>
+          </View>
+          {passwordTouched && isPasswordMissing ? (
+            <Text style={[styles.errorText, dynamicStyles.errorText]}>Jelszó megadása kötelező.</Text>
+          ) : null}
 
-        <Pressable
-          disabled={isLoginDisabled}
-          onPress={handleLogin}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            dynamicStyles.primaryButton,
-            pressed && !isLoginDisabled ? styles.primaryButtonPressed : undefined,
-            isLoginDisabled ? dynamicStyles.buttonDisabled : undefined,
-          ]}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator color={colors.textOnPrimary} />
-          ) : (
-            <Text style={[styles.primaryButtonText, dynamicStyles.primaryButtonText]}>Bejelentkezés</Text>
-          )}
-        </Pressable>
-      </View>
+          {loginError ? <Text style={[styles.errorText, dynamicStyles.errorText]}>{loginError}</Text> : null}
+
+          <Pressable
+            disabled={isLoginDisabled}
+            onPress={handleLogin}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              dynamicStyles.primaryButton,
+              pressed && !isLoginDisabled ? styles.primaryButtonPressed : undefined,
+              isLoginDisabled ? dynamicStyles.buttonDisabled : undefined,
+            ]}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color={colors.textOnPrimary} />
+            ) : (
+              <Text style={[styles.primaryButtonText, dynamicStyles.primaryButtonText]}>Bejelentkezés</Text>
+            )}
+          </Pressable>
+        </View>
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
@@ -306,5 +381,40 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
     fontWeight: '800',
     fontSize: 16,
+  },
+  passwordWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#94A3B8',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+  },
+  passwordInput: {
+    flex: 1,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+  },
+  retryButton: {
+    marginTop: 4,
+    backgroundColor: '#0F766E',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: 20,
+  },
+  connectionText: {
+    fontSize: 13,
+    color: '#334155',
+    textAlign: 'left',
+  },
+  passwordToggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  connectionCard: {
+    alignItems: 'center',
+    gap: 8,
   },
 });
